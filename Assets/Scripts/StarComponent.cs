@@ -23,6 +23,9 @@ public class StarComponent : MonoBehaviour
         float t = Mathf.InverseLerp(10f, 500f, mass);
         Color targetColor = Color.Lerp(Color.red, Color.cyan, t);
 
+        float scale = Mathf.Lerp(0.5f, 2.5f, t);
+        transform.localScale = Vector3.one * scale;
+
         // Muda a cor do Material (M_Star_Base) apenas nesta instância
         if (starRenderer != null)
         {
@@ -40,7 +43,7 @@ public class StarComponent : MonoBehaviour
             // Vou forçar o rasto a ser sólido e colorido
             starTrail.startColor = targetColor;
             starTrail.endColor = new Color(targetColor.r, targetColor.g, targetColor.b, 0f);
-            starTrail.startWidth = 0.1f;
+            starTrail.startWidth = 0.1f * scale;
         }
     }
 }
