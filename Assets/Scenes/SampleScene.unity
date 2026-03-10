@@ -689,10 +689,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StarSystemManager
   starPrefab: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
-  numberOfStars: 100
-  spawnRadius: 20
-  G: 50
-  initialVelocityScale: 1
+  G: 1
   timeScale: 1
 --- !u!4 &1948625231
 Transform:

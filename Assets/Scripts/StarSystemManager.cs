@@ -1,91 +1,93 @@
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine.SceneManagement; 
 
 public class StarSystemManager : MonoBehaviour
 {
-    [Header("Geração")]
+    [Header("Configurações")]
     public GameObject starPrefab;
-    public int numberOfStars = 100;
-    public float spawnRadius = 30f;
-
-    [Header("Física (Newton)")]
     public float G = 100f; 
-    public float initialVelocityScale = 5f;
-    public float timeScale = 1f; // Para acelerar ou abrandar a simulação
-
-    private List<GameObject> stars = new List<GameObject>();
-    private List<Vector3> velocities = new List<Vector3>();
+    public float timeScale = 1f;
+    
+    // Lista que guarda as estrelas para o cálculo da gravidade
+    private List<StarComponent> stars = new List<StarComponent>();
 
     void Start()
     {
-        SpawnGalaxy();
+        //Spawn a um conjunto de estrelas: Teste
+        SpawnInitialGalaxy(100, 30f);
     }
 
-    void SpawnGalaxy()
+    // Gera a galáxia inicial
+    public void SpawnInitialGalaxy(int count, float radius)
     {
-        for (int i = 0; i < numberOfStars; i++)
+        for (int i = 0; i < count; i++)
         {
-            // Posição em disco (Galáxia)
-            Vector3 randomPos = Random.insideUnitSphere * spawnRadius;
-            randomPos.y *= 0.1f; 
-
-            GameObject star = Instantiate(starPrefab, randomPos, Quaternion.identity);
-            star.transform.parent = this.transform;
-            stars.Add(star);
-
-            // Velocidade Orbital Inicial (Para não colapsarem logo)
-            Vector3 perpendicular = Vector3.Cross(randomPos, Vector3.up).normalized;
-            velocities.Add(perpendicular * initialVelocityScale);
+            Vector3 pos = Random.insideUnitSphere * radius;
+            pos.y *= 0.1f; 
             
-            star.name = "Star_" + i;
+            float randomMass = Random.Range(10f, 500f); // Massas variadas
+            Vector3 vel = Vector3.Cross(pos, Vector3.up).normalized * 5f;
+
+            CreateStar(pos, vel, randomMass);
         }
+    }
+
+    // Função para criar uma estrela (Modo User Control)
+    public void CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
+    {
+        GameObject obj = Instantiate(starPrefab, position, Quaternion.identity);
+        obj.transform.parent = this.transform;
+
+        StarComponent sc = obj.GetComponent<StarComponent>();
+        sc.mass = mass;
+        sc.velocity = initialVelocity;
+        
+        // Atualiza a cor logo ao nascer baseado na massa
+        sc.UpdateAppearance();
+
+        stars.Add(sc);
+    }
+
+    public void ResetSimulation()
+    {
+        foreach (StarComponent sc in stars)
+        {
+            if (sc!= null)
+            {
+                Destroy(sc.gameObject);
+            }
+        }
+        stars.Clear();
+
+        SpawnInitialGalaxy(100, 30f);
     }
 
     void FixedUpdate()
     {
-        ApplyGravity();
-    }
-
-    void ApplyGravity()
-    {
         float dt = Time.fixedDeltaTime * timeScale;
 
+        // Loop de gravidade N-Bodies
         for (int i = 0; i < stars.Count; i++)
         {
             Vector3 acceleration = Vector3.zero;
-
             for (int j = 0; j < stars.Count; j++)
             {
                 if (i == j) continue;
 
-                Vector3 direction = stars[j].transform.position - stars[i].transform.position;
-                float distanceSq = direction.sqrMagnitude;
+                Vector3 dir = stars[j].transform.position - stars[i].transform.position;
+                float distSq = Mathf.Max(dir.sqrMagnitude, 2f); // Evita erros de divisão por zero
 
-                // "Softening" - evita que a força seja infinita quando se cruzam
-                if (distanceSq < 2f) continue; 
-
-                // F = G / r^2
-                float force = G / distanceSq;
-                acceleration += direction.normalized * force;
+                // Usa a massa real de cada estrela
+                float force = (G * stars[j].mass) / distSq;
+                acceleration += dir.normalized * force;
             }
-
-            velocities[i] += acceleration * dt;
-            stars[i].transform.position += velocities[i] * dt;
+            stars[i].velocity += acceleration * dt;
         }
-    }
-    public void ResetSimulation()
-    {
-    // Opção A: Reiniciar a cena completa
-    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    
-    /* Opção B: Apagar as estrelas sem recarregar a cena:
-    foreach (GameObject star in stars) {
-        Destroy(star);
-    }
-    stars.Clear();
-    velocities.Clear();
-    SpawnGalaxy();
-    */
+
+        // Aplica o movimento
+        foreach (StarComponent sc in stars)
+        {
+            sc.transform.position += sc.velocity * dt;
+        }
     }
 }
