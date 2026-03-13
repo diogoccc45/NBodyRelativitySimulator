@@ -23,7 +23,7 @@ public class StarSystemManager : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Vector3 pos = Random.insideUnitSphere * radius;
-            pos.y *= 0.1f; 
+            // pos.y *= 0.1f; 
             
             float randomMass = Random.Range(10f, 500f); // Massas variadas
             Vector3 vel = Vector3.Cross(pos, Vector3.up).normalized * 5f;
