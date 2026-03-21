@@ -15,6 +15,12 @@ public class MouseInteraction : MonoBehaviour
     private GameObject ghostInstance;
     private StarComponent ghostComponent;
 
+    [Header("Configuração do Lançamento")]
+    public LineRenderer dragLine; // Arrastar o componente LineRenderer para aqui no Inspector
+    private Vector3 dragStartPos;
+    private bool isDragging = false;
+    public float launchForceMultiplier = 0.5f; // Ajusta a sensibilidade do lançamento
+
     void Start()
     {
         // Criamos a instância do "Fantasma" no início
@@ -34,6 +40,13 @@ public class MouseInteraction : MonoBehaviour
 
             ghostComponent = ghostInstance.GetComponent<StarComponent>();
         }
+
+        // Configuração inicial da linha visual
+        if (dragLine != null)
+        {
+            dragLine.positionCount = 2;
+            dragLine.enabled = false;
+        }
     }
 
     void Update()
@@ -42,14 +55,56 @@ public class MouseInteraction : MonoBehaviour
         if (massText != null && massSlider != null)
             massText.text = "Massa a criar: " + massSlider.value;
 
-        // Posiciona o Ghost Preview no Rato
-        MovePreview();
+        HandleInput();
+    }
 
-        // Clique para Criar (Botão Esquerdo)
-        // O !IsPointerOverGameObject impede de criar estrelas ao clicar no Slider
+    void HandleInput()
+    {
+        // Deteta o início do clique (Prepara o nascimento da estrela)
         if (Input.GetMouseButtonDown(0) && !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
         {
-            SpawnAtMouse();
+            isDragging = true;
+            dragStartPos = GetMouseWorldPos();
+            
+            if (dragLine != null) dragLine.enabled = true;
+        }
+
+        // Enquanto o botão está a ser pressionado (Calcula a trajetória/força)
+        if (isDragging)
+        {
+            Vector3 currentMousePos = GetMouseWorldPos();
+            
+            // O Fantasma fica fixo no ponto onde clicamos (onde a estrela vai nascer)
+            ghostInstance.transform.position = dragStartPos;
+            UpdateGhostVisuals();
+
+            // Desenha a linha
+            if (dragLine != null)
+            {
+                dragLine.SetPosition(0, dragStartPos);
+                dragLine.SetPosition(1, currentMousePos);
+            }
+
+            // Se soltar o botão, cria com velocidade
+            if (Input.GetMouseButtonUp(0))
+            {
+                isDragging = false;
+                if (dragLine != null) dragLine.enabled = false;
+
+                Vector3 dragEndPos = GetMouseWorldPos();
+                
+                // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
+                Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
+
+                // Cria a estrela real com a velocidade calculada (se não arrastou, a velocidade é 0)
+                manager.CreateStar(dragStartPos, launchVelocity, massSlider.value);
+            }
+        }
+        else
+        {
+            // Se não está a arrastar, o fantasma segue o rato normalmente para exploração
+            MovePreview();
+            if (dragLine != null) dragLine.enabled = false;
         }
     }
 
@@ -57,13 +112,12 @@ public class MouseInteraction : MonoBehaviour
     {
         if (ghostInstance == null || Camera.main == null) return;
 
-        Vector3 mousePos = Input.mousePosition;
-        mousePos.z = Camera.main.transform.position.y;
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mousePos);
-        worldPos.y = 0;
+        ghostInstance.transform.position = GetMouseWorldPos();
+        UpdateGhostVisuals();
+    }
 
-        ghostInstance.transform.position = worldPos;
-
+    void UpdateGhostVisuals()
+    {
         // Atualiza o aspeto do fantasma em tempo real conforme o Slider
         if (ghostComponent != null && massSlider != null)
         {
@@ -73,7 +127,7 @@ public class MouseInteraction : MonoBehaviour
             Renderer rend = ghostInstance.GetComponent<Renderer>();
             if (rend != null)
             {
-                float t = Mathf.InverseLerp(10f,500f, massSlider.value);
+                float t = Mathf.InverseLerp(10f, 500f, massSlider.value);
                 Color targetColor = Color.Lerp(Color.red, Color.cyan, t);
 
                 targetColor.a = 0.2f;
@@ -84,10 +138,13 @@ public class MouseInteraction : MonoBehaviour
         }
     }
 
-    void SpawnAtMouse()
+    // Função auxiliar para converter posição do rato para o mundo 3D (plano Y=0)
+    Vector3 GetMouseWorldPos()
     {
-        if (ghostInstance == null) return;
-        // Cria a estrela real na posição atual do fantasma com a massa do slider
-        manager.CreateStar(ghostInstance.transform.position, Vector3.zero, massSlider.value);
+        Vector3 mousePos = Input.mousePosition;
+        mousePos.z = Camera.main.transform.position.y;
+        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mousePos);
+        worldPos.y = 0;
+        return worldPos;
     }
 }
