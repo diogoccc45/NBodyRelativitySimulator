@@ -5,6 +5,9 @@ public class StarComponent : MonoBehaviour
     public float mass = 1.0f;
     public Vector3 velocity;
     
+    // Booleano para distinguir se este objeto é um planeta
+    public bool isPlanet = false;
+
     private Renderer starRenderer;
     private TrailRenderer starTrail;
 
@@ -23,15 +26,37 @@ public class StarComponent : MonoBehaviour
         float t = Mathf.InverseLerp(10f, 500f, mass);
         Color targetColor = Color.Lerp(Color.red, Color.cyan, t);
 
+        if (isPlanet)
+        {
+            float t_planet = Mathf.InverseLerp(0.1f, 10f, mass); 
+            if (t_planet < 0.5f)
+                targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t_planet * 2);
+            else
+                targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t_planet - 0.5f) * 2);
+        }
+
         float scale = Mathf.Lerp(0.5f, 2.5f, t);
+        
+        // Se for planeta, garantimos que ele é sempre mais pequeno que a estrela mínima
+        if (isPlanet) scale = 0.3f; 
+
         transform.localScale = Vector3.one * scale;
 
         // Muda a cor do Material (M_Star_Base) apenas nesta instância
         if (starRenderer != null)
         {
             starRenderer.material.color = targetColor;
-            starRenderer.material.EnableKeyword("_EMISSION");
-            starRenderer.material.SetColor("_EmissionColor", targetColor * 3.0f);
+
+            // Se for planeta, desligamos o brilho (Emission)
+            if (isPlanet)
+            {
+                starRenderer.material.DisableKeyword("_EMISSION");
+            }
+            else
+            {
+                starRenderer.material.EnableKeyword("_EMISSION");
+                starRenderer.material.SetColor("_EmissionColor", targetColor * 3.0f);
+            }
         }
 
         // Muda a cor do Trail Renderer

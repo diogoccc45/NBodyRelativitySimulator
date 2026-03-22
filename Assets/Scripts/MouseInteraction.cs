@@ -8,6 +8,11 @@ public class MouseInteraction : MonoBehaviour
     public StarSystemManager manager;
     public Slider massSlider;
     public TextMeshProUGUI massText;
+
+    [Header("Configuração de Prefabs")]
+    public GameObject starPrefab;
+    public GameObject planetPrefab;
+    private GameObject currentPrefab;
     
     [Header("Configuração do Preview")]
     public GameObject previewStar;
@@ -16,17 +21,55 @@ public class MouseInteraction : MonoBehaviour
     private StarComponent ghostComponent;
 
     [Header("Configuração do Lançamento")]
-    public LineRenderer dragLine; // Arrastar o componente LineRenderer para aqui no Inspector
+    public LineRenderer dragLine;
     private Vector3 dragStartPos;
     private bool isDragging = false;
-    public float launchForceMultiplier = 0.5f; // Ajusta a sensibilidade do lançamento
+    public float launchForceMultiplier = 0.5f;
+    public float dragThreshold = 0.3f; // Distância mínima para validar o lançamento
 
     void Start()
     {
-        // Criamos a instância do "Fantasma" no início
-        if (previewStar != null)
+        currentPrefab = starPrefab;
+        ResetGhost();
+
+        // Configuração inicial da linha visual
+        if (dragLine != null)
         {
-            ghostInstance = Instantiate(previewStar);
+            dragLine.positionCount = 2;
+            dragLine.enabled = false;
+        }
+    }
+
+    // Função para botões trocarem entre Estrela e Planeta
+    public void MudarTipo(bool eEstrela)
+    {
+        // Escolhe o prefab
+        currentPrefab = eEstrela ? starPrefab : planetPrefab;
+
+        if (eEstrela)
+        {
+            massSlider.minValue = 10;
+            massSlider.maxValue = 500;
+            massSlider.value = 100;
+        }
+        else
+        {
+            massSlider.minValue = 0.1f;
+            massSlider.maxValue = 10f;
+            massSlider.value = 1;
+        }
+
+        // Reset ao fantasma para mudar de visual no ecrã
+        ResetGhost();
+    }
+
+    void ResetGhost()
+    {
+        if (ghostInstance != null) Destroy(ghostInstance);
+        
+        if (currentPrefab != null)
+        {
+            ghostInstance = Instantiate(currentPrefab);
             // Removi o TrailRenderer e a Física do fantasma para não interferir
             if (ghostInstance.TryGetComponent<TrailRenderer>(out var tr)) Destroy(tr);
             if (ghostInstance.TryGetComponent<Collider>(out var col)) Destroy(col);
@@ -40,26 +83,21 @@ public class MouseInteraction : MonoBehaviour
 
             ghostComponent = ghostInstance.GetComponent<StarComponent>();
         }
-
-        // Configuração inicial da linha visual
-        if (dragLine != null)
-        {
-            dragLine.positionCount = 2;
-            dragLine.enabled = false;
-        }
     }
 
     void Update()
     {
         // Atualiza o texto da massa
         if (massText != null && massSlider != null)
-            massText.text = "Massa a criar: " + massSlider.value;
+            massText.text = "Massa a criar: " + massSlider.value.ToString("F2");
 
         HandleInput();
     }
 
     void HandleInput()
     {
+        if (ghostInstance == null) return;
+
         // Deteta o início do clique (Prepara o nascimento da estrela)
         if (Input.GetMouseButtonDown(0) && !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
         {
@@ -85,7 +123,7 @@ public class MouseInteraction : MonoBehaviour
                 dragLine.SetPosition(1, currentMousePos);
             }
 
-            // Se soltar o botão, cria com velocidade
+            // Se soltar o botão, cria com velocidade ou modo estático
             if (Input.GetMouseButtonUp(0))
             {
                 isDragging = false;
@@ -93,11 +131,21 @@ public class MouseInteraction : MonoBehaviour
 
                 Vector3 dragEndPos = GetMouseWorldPos();
                 
-                // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
-                Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
+                // Calculamos a distância do arrasto para evitar cliques simples sem querer
+                float dragDistance = Vector3.Distance(dragStartPos, dragEndPos);
 
-                // Cria a estrela real com a velocidade calculada (se não arrastou, a velocidade é 0)
-                manager.CreateStar(dragStartPos, launchVelocity, massSlider.value);
+                // SE segurar SHIFT, cria parado (perfeito para colocar o Sol no centro)
+                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                {
+                    manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
+                }
+                // SENÃO, verifica se o arrasto é suficiente para o lançamento (estilingue)
+                else if (dragDistance > dragThreshold)
+                {
+                    // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
+                    Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
+                    manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, massSlider.value);
+                }
             }
         }
         else
@@ -118,23 +166,34 @@ public class MouseInteraction : MonoBehaviour
 
     void UpdateGhostVisuals()
     {
-        // Atualiza o aspeto do fantasma em tempo real conforme o Slider
-        if (ghostComponent != null && massSlider != null)
+        if (ghostInstance == null || ghostComponent == null || massSlider == null) return;
+
+        ghostComponent.mass = massSlider.value;
+        ghostComponent.UpdateAppearance();
+
+        Renderer rend = ghostInstance.GetComponent<Renderer>();
+        if (rend != null)
         {
-            ghostComponent.mass = massSlider.value;
-            ghostComponent.UpdateAppearance();
+            float t = Mathf.InverseLerp(massSlider.minValue, massSlider.maxValue, massSlider.value);
+            Color targetColor;
 
-            Renderer rend = ghostInstance.GetComponent<Renderer>();
-            if (rend != null)
+            if (currentPrefab == starPrefab)
             {
-                float t = Mathf.InverseLerp(10f, 500f, massSlider.value);
-                Color targetColor = Color.Lerp(Color.red, Color.cyan, t);
-
-                targetColor.a = 0.2f;
-
-                rend.material.color = targetColor;
-                rend.material.SetColor("_BaseColor", targetColor);
+                targetColor = Color.Lerp(Color.red, Color.cyan, t);
             }
+            else
+            {
+                // Gradiente do Sistema Solar para Planetas
+                // 0.0 (Mercúrio/Marte) -> 0.5 (Júpiter/Saturno) -> 1.0 (Neptuno)
+                if (t < 0.5f)
+                    targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t * 2); // Castanho a Bege
+                else
+                    targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t - 0.5f) * 2); // Bege a Azul
+            }
+
+            targetColor.a = 0.4f;
+            rend.material.color = targetColor;
+            rend.material.SetColor("_BaseColor", targetColor);
         }
     }
 

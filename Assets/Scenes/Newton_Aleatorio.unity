@@ -1217,6 +1217,8 @@ MonoBehaviour:
   starPrefab: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
   G: 1
   timeScale: 1
+  starCount: 100
+  spawnRadius: 30
 --- !u!4 &1948625231
 Transform:
   m_ObjectHideFlags: 0
@@ -1247,10 +1249,13 @@ MonoBehaviour:
   manager: {fileID: 1948625230}
   massSlider: {fileID: 680163993}
   massText: {fileID: 609611828}
+  starPrefab: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
+  planetPrefab: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
   previewStar: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
   ghostMaterial: {fileID: 2100000, guid: cb3c12a8ac531ff468709e76502f3bd0, type: 2}
   dragLine: {fileID: 1948625233}
   launchForceMultiplier: 0.5
+  dragThreshold: 0.3
 --- !u!120 &1948625233
 LineRenderer:
   serializedVersion: 3

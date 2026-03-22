@@ -8,13 +8,18 @@ public class StarSystemManager : MonoBehaviour
     public float G = 100f; 
     public float timeScale = 1f;
     
+    public int starCount = 100; 
+    public float spawnRadius = 30f;
+    
     // Lista que guarda as estrelas para o cálculo da gravidade
     private List<StarComponent> stars = new List<StarComponent>();
 
     void Start()
     {
-        //Spawn a um conjunto de estrelas: Teste
-        SpawnInitialGalaxy(100, 30f);
+        if (starCount > 0)
+        {
+            SpawnInitialGalaxy(starCount, spawnRadius);
+        }
     }
 
     // Gera a galáxia inicial
@@ -35,21 +40,35 @@ public class StarSystemManager : MonoBehaviour
     // Função para criar uma estrela (Modo User Control)
     public void CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
     {
-        GameObject obj = Instantiate(starPrefab, position, Quaternion.identity);
+        CreateStarCustom(starPrefab, position, initialVelocity, mass);
+    }
+
+    // Permite criar qualquer prefab (Estrela ou Planeta) vindo do MouseInteraction
+    public void CreateStarCustom(GameObject prefab, Vector3 position, Vector3 initialVelocity, float mass)
+    {
+        if (prefab == null) return;
+
+        GameObject obj = Instantiate(prefab, position, Quaternion.identity);
         obj.transform.parent = this.transform;
 
         StarComponent sc = obj.GetComponent<StarComponent>();
-        sc.mass = mass;
-        sc.velocity = initialVelocity;
-        
-        // Atualiza a cor logo ao nascer baseado na massa
-        sc.UpdateAppearance();
+        if (sc != null)
+        {
+            sc.mass = mass;
+            sc.velocity = initialVelocity;
+            
+            // Atualiza a cor logo ao nascer baseado na massa
+            sc.UpdateAppearance();
 
-        stars.Add(sc);
+            stars.Add(sc);
+        }
     }
 
     public void ResetSimulation()
     {
+        // Limpeza de segurança para evitar erros se objetos forem destruídos manualmente
+        stars.RemoveAll(s => s == null);
+
         foreach (StarComponent sc in stars)
         {
             if (sc!= null)
@@ -59,12 +78,19 @@ public class StarSystemManager : MonoBehaviour
         }
         stars.Clear();
 
-        SpawnInitialGalaxy(100, 30f);
+        // Agora usa as variáveis do inspector no reset também
+        if (starCount > 0)
+        {
+            SpawnInitialGalaxy(starCount, spawnRadius);
+        }
     }
 
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime * timeScale;
+
+        // Limpeza de referências nulas (caso estrelas colidam e desapareçam)
+        stars.RemoveAll(s => s == null);
 
         // Loop de gravidade N-Bodies
         for (int i = 0; i < stars.Count; i++)
@@ -87,7 +113,8 @@ public class StarSystemManager : MonoBehaviour
         // Aplica o movimento
         foreach (StarComponent sc in stars)
         {
-            sc.transform.position += sc.velocity * dt;
+            if (sc != null)
+                sc.transform.position += sc.velocity * dt;
         }
     }
 }
