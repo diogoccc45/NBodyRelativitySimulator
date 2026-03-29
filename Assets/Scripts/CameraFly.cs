@@ -1,31 +1,40 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
-public class CameraFly : MonoBehaviour 
+public class CameraFly : MonoBehaviour
 {
     public float speed = 50f;
     public float sensitivity = 2f;
 
-    void Update() 
+    void Update()
     {
-        // Movimento WASD manual
-        float moveForward = 0;
-        float moveSide = 0;
+        // Movimento WASD
+        float moveForward = 0f;
+        float moveSide = 0f;
 
-        if (Input.GetKey(KeyCode.W)) moveForward = 1;
-        if (Input.GetKey(KeyCode.S)) moveForward = -1;
-        if (Input.GetKey(KeyCode.D)) moveSide = 1;
-        if (Input.GetKey(KeyCode.A)) moveSide = -1;
+        if (Keyboard.current.wKey.isPressed) moveForward = 1f;
+        if (Keyboard.current.sKey.isPressed) moveForward = -1f;
+        if (Keyboard.current.dKey.isPressed) moveSide = 1f;
+        if (Keyboard.current.aKey.isPressed) moveSide = -1f;
 
-        Vector3 direction = new Vector3(moveSide, 0, moveForward);
-        transform.Translate(direction * speed * Time.deltaTime);
-        
-        // Rotação com o Botão Direito do Rato
-        if (Input.GetMouseButton(1)) 
+        // Usamos o forward da câmara mas projetamos no plano horizontal de forma segura
+        Vector3 camForward = transform.forward;
+        Vector3 flatForward = Vector3.Cross(transform.right, Vector3.up).normalized; 
+
+        Vector3 right = transform.right;
+        right.y = 0;
+        right.Normalize();
+
+        // Aplicamos o movimento
+        Vector3 moveDirection = (flatForward * moveForward + right * moveSide);
+        transform.position += moveDirection * speed * Time.deltaTime;
+
+        // Rotação com botão direito do rato
+        if (Mouse.current.rightButton.isPressed)
         {
-            float rotX = Input.GetAxis("Mouse X") * sensitivity;
-            float rotY = -Input.GetAxis("Mouse Y") * sensitivity;
-            transform.Rotate(0, rotX, 0, Space.World);
-            transform.Rotate(rotY, 0, 0, Space.Self);
+            Vector2 delta = Mouse.current.delta.ReadValue();
+            transform.Rotate(0, delta.x * sensitivity, 0, Space.World);
+            transform.Rotate(-delta.y * sensitivity, 0, 0, Space.Self);
         }
     }
 }

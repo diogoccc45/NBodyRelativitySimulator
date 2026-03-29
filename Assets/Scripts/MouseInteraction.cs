@@ -134,12 +134,12 @@ public class MouseInteraction : MonoBehaviour
                 // Calculamos a distância do arrasto para evitar cliques simples sem querer
                 float dragDistance = Vector3.Distance(dragStartPos, dragEndPos);
 
-                // SE segurar SHIFT, cria parado (perfeito para colocar o Sol no centro)
+                // SE segurar SHIFT, cria parado
                 if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
                 {
                     manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
                 }
-                // SENÃO, verifica se o arrasto é suficiente para o lançamento (estilingue)
+                // SENÃO, verifica se o arrasto é suficiente para o lançamento
                 else if (dragDistance > dragThreshold)
                 {
                     // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
@@ -197,13 +197,14 @@ public class MouseInteraction : MonoBehaviour
         }
     }
 
-    // Função auxiliar para converter posição do rato para o mundo 3D (plano Y=0)
+    // Distância fixa à câmara onde o ghost e as estrelas são criados.
+    public float spawnDistance = 30f;
+
+    // Converte a posição do rato para um ponto no mundo 3D a uma distância fixa da câmara.
     Vector3 GetMouseWorldPos()
     {
-        Vector3 mousePos = Input.mousePosition;
-        mousePos.z = Camera.main.transform.position.y;
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mousePos);
-        worldPos.y = 0;
-        return worldPos;
+        if (Camera.main == null) return Vector3.zero;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        return ray.GetPoint(spawnDistance);
     }
 }
