@@ -3,12 +3,14 @@ using UnityEngine.InputSystem;
 
 public class CameraFly : MonoBehaviour
 {
-    public float speed = 50f;
-    public float sensitivity = 2f;
+    public float speed = 100f;
+
+    [Header("Configurações de Rotação")]
+    public float sensitivity = 0.15f; // Adicionada a caixa de sensitivity com valor base mais suave
 
     void Update()
     {
-        // Movimento WASD
+        // Inputs
         float moveForward = 0f;
         float moveSide = 0f;
 
@@ -17,24 +19,26 @@ public class CameraFly : MonoBehaviour
         if (Keyboard.current.dKey.isPressed) moveSide = 1f;
         if (Keyboard.current.aKey.isPressed) moveSide = -1f;
 
-        // Usamos o forward da câmara mas projetamos no plano horizontal de forma segura
-        Vector3 camForward = transform.forward;
-        Vector3 flatForward = Vector3.Cross(transform.right, Vector3.up).normalized; 
+        Vector3 direction = (transform.forward * moveForward + transform.right * moveSide).normalized;
 
-        Vector3 right = transform.right;
-        right.y = 0;
-        right.Normalize();
+        // Forcei a posição a mudar em todos os eixos (X, Y, Z) baseada na visão
+        transform.position += direction * speed * Time.deltaTime;
 
-        // Aplicamos o movimento
-        Vector3 moveDirection = (flatForward * moveForward + right * moveSide);
-        transform.position += moveDirection * speed * Time.deltaTime;
-
-        // Rotação com botão direito do rato
+        // Rotação
         if (Mouse.current.rightButton.isPressed)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
-            transform.Rotate(0, delta.x * sensitivity, 0, Space.World);
-            transform.Rotate(-delta.y * sensitivity, 0, 0, Space.Self);
+            
+            // Aplicamos a sensibilidade ao delta do rato
+            float rotX = delta.x * sensitivity;
+            float rotY = delta.y * sensitivity;
+
+            transform.Rotate(Vector3.up, rotX, Space.World);
+            transform.Rotate(Vector3.left, rotY, Space.Self);
         }
+
+        // Turbo
+        if (Keyboard.current.leftShiftKey.isPressed) speed = 500f; 
+        else speed = 100f;
     }
 }

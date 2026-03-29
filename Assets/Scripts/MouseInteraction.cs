@@ -200,11 +200,22 @@ public class MouseInteraction : MonoBehaviour
     // Distância fixa à câmara onde o ghost e as estrelas são criados.
     public float spawnDistance = 30f;
 
-    // Converte a posição do rato para um ponto no mundo 3D a uma distância fixa da câmara.
     Vector3 GetMouseWorldPos()
     {
-        if (Camera.main == null) return Vector3.zero;
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        return ray.GetPoint(spawnDistance);
+    if (Camera.main == null) return Vector3.zero;
+
+    // Criei um raio que sai do ponteiro do rato
+    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+    
+    // Criei um plano que está sempre virado para a câmara a 20 metros de distância
+    // Isto garante que o ghost acompanha o rato perfeitamente em 3D
+    Plane plane = new Plane(-Camera.main.transform.forward, Camera.main.transform.position + Camera.main.transform.forward * 20f);
+    
+    if (plane.Raycast(ray, out float distance))
+    {
+        return ray.GetPoint(distance);
+    }
+    
+    return ray.GetPoint(20f);
     }
 }
