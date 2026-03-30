@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 using System;
 
@@ -134,21 +135,24 @@ public class MouseInteraction : MonoBehaviour
 
                 Vector3 dragEndPos = GetMouseWorldPos();
                 
-                // Calculamos a distância do arrasto para evitar cliques simples sem querer
+                // Calculei a distância do arrasto para evitar cliques simples sem querer
                 float dragDistance = Vector3.Distance(dragStartPos, dragEndPos);
 
-                // SE segurar SHIFT, cria parado
-                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                // O + clique esquerdo - órbita automática em relação à estrela mais próxima
+                if (Keyboard.current.oKey.isPressed && currentPrefab == planetPrefab)
                 {
-                    // Guardamos a referência para o sistema de foco
+                    Vector3 orbitalVel = CalcOrbitalVelocity(dragStartPos);
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, orbitalVel, massSlider.value);
+                }
+                // SHIFT - cria parado
+                else if (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed)
+                {
                     lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
                 }
-                // SENÃO, verifica se o arrasto é suficiente para o lançamento
+                // Estilingue normal
                 else if (dragDistance > dragThreshold)
                 {
-                    // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
                     Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
-                    // Guardamos a referência para o sistema de foco
                     lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, massSlider.value);
                 }
             }
@@ -202,25 +206,36 @@ public class MouseInteraction : MonoBehaviour
         }
     }
 
-    // Distância fixa à câmara onde o ghost e as estrelas são criados.
-    public float spawnDistance = 30f;
+    public float spawnDistance = 20f;
 
     Vector3 GetMouseWorldPos()
     {
-    if (Camera.main == null) return Vector3.zero;
-
-    // Criei um raio que sai do ponteiro do rato
-    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-    
-    // Criei um plano que está sempre virado para a câmara a 20 metros de distância
-    // Isto garante que o ghost acompanha o rato perfeitamente em 3D
-    Plane plane = new Plane(-Camera.main.transform.forward, Camera.main.transform.position + Camera.main.transform.forward * 20f);
-    
-    if (plane.Raycast(ray, out float distance))
-    {
-        return ray.GetPoint(distance);
+        if (Camera.main == null) return Vector3.zero;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Plane plane = new Plane(-Camera.main.transform.forward,
+                                Camera.main.transform.position + Camera.main.transform.forward * spawnDistance);
+        if (plane.Raycast(ray, out float distance))
+            return ray.GetPoint(distance);
+        return ray.GetPoint(spawnDistance);
     }
-    
-    return ray.GetPoint(20f);
+
+    // Calcula a velocidade orbital ideal em relação à estrela mais próxima de 'position'.
+    // Usa a fórmula v = sqrt(G * M / r), perpendicular ao vetor posição-estrela.
+    Vector3 CalcOrbitalVelocity(Vector3 position)
+    {
+        // Pede ao manager a lista de estrelas para encontrar a mais próxima
+        StarComponent nearest = manager.GetNearestStar(position);
+        if (nearest == null) return Vector3.zero;
+
+        Vector3 toStar = nearest.transform.position - position;
+        float   r      = toStar.magnitude;
+        if (r < 0.01f) return Vector3.zero;
+
+        float speed = Mathf.Sqrt(manager.G * nearest.mass / r);
+
+        // Direção perpendicular ao vetor posição->estrela, no plano da câmara
+        Vector3 perpendicular = Vector3.Cross(toStar.normalized, Camera.main.transform.forward).normalized;
+
+        return perpendicular * speed;
     }
 }

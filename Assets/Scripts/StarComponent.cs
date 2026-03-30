@@ -35,7 +35,7 @@ public class StarComponent : MonoBehaviour
                 targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t_planet - 0.5f) * 2);
         }
 
-        float scale = Mathf.Lerp(0.5f, 2.5f, t);
+        float scale = 0.5f + (mass / 100f);
         
         // Se for planeta, garantimos que ele é sempre mais pequeno que a estrela mínima
         if (isPlanet) scale = 0.3f; 

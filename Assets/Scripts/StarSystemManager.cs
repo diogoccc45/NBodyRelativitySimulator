@@ -10,6 +10,11 @@ public class StarSystemManager : MonoBehaviour
     
     public int starCount = 100; 
     public float spawnRadius = 30f;
+
+    [Header("Colisões")]
+    [Tooltip("Ativar na cena Laboratorio_Manual. Desativar na cena Newton_Aleatorio.")]
+    public bool enableMerging = false;
+    public float mergeDistance = 1.5f; // distância mínima para fundir duas estrelas
     
     // Lista que guarda as estrelas para o cálculo da gravidade
     private List<StarComponent> stars = new List<StarComponent>();
@@ -38,7 +43,6 @@ public class StarSystemManager : MonoBehaviour
     }
 
     // Função para criar uma estrela (Modo User Control)
-    // Agora retorna GameObject para o sistema de foco
     public GameObject CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
     {
         return CreateStarCustom(starPrefab, position, initialVelocity, mass);
@@ -53,7 +57,6 @@ public class StarSystemManager : MonoBehaviour
         GameObject obj = Instantiate(prefab, position, Quaternion.identity);
         obj.transform.parent = this.transform;
 
-        // --- GARANTE QUE O TRAIL APARECE E ESTÁ LIMPO ---
         if (obj.TryGetComponent<TrailRenderer>(out var tr))
         {
             tr.enabled = true;
@@ -73,6 +76,22 @@ public class StarSystemManager : MonoBehaviour
         }
 
         return obj; // Retorna o objeto criado para o MouseInteraction guardar a referência
+    }
+
+    // Devolve a estrela (não planeta) mais próxima de uma posição, usado pelo MouseInteraction para calcular a velocidade orbital ideal.
+    public StarComponent GetNearestStar(Vector3 position)
+    {
+        StarComponent nearest  = null;
+        float         minDist  = float.MaxValue;
+
+        foreach (StarComponent sc in stars)
+        {
+            if (sc == null || sc.isPlanet) continue;
+            float d = Vector3.Distance(position, sc.transform.position);
+            if (d < minDist) { minDist = d; nearest = sc; }
+        }
+
+        return nearest;
     }
 
     public void ResetSimulation()
@@ -112,7 +131,7 @@ public class StarSystemManager : MonoBehaviour
                 if (i == j) continue;
 
                 Vector3 dir = stars[j].transform.position - stars[i].transform.position;
-                float distSq = Mathf.Max(dir.sqrMagnitude, 2f); // Evita erros de divisão por zero
+                float distSq = Mathf.Max(dir.sqrMagnitude, 25f); // Evita erros de divisão por zero
 
                 // Usa a massa real de cada estrela
                 float force = (G * stars[j].mass) / distSq;
@@ -126,6 +145,45 @@ public class StarSystemManager : MonoBehaviour
         {
             if (sc != null)
                 sc.transform.position += sc.velocity * dt;
+        }
+
+        // Fusão de estrelas (só ativa se enableMerging = true)
+        if (enableMerging)
+            ProcessMerges();
+    }
+
+    void ProcessMerges()
+    {
+        for (int i = stars.Count - 1; i >= 0; i--)
+        {
+            if (stars[i] == null) continue;
+
+            for (int j = i - 1; j >= 0; j--)
+            {
+                if (stars[j] == null) continue;
+
+                float dist = Vector3.Distance(stars[i].transform.position,
+                                              stars[j].transform.position);
+                if (dist > mergeDistance) continue;
+
+                // Conservação de momento: p = m*v → v_final = (m1*v1 + m2*v2) / (m1+m2)
+                float   totalMass    = stars[i].mass + stars[j].mass;
+                Vector3 newVelocity  = (stars[i].velocity * stars[i].mass
+                                      + stars[j].velocity * stars[j].mass) / totalMass;
+                Vector3 newPosition  = (stars[i].transform.position * stars[i].mass
+                                      + stars[j].transform.position * stars[j].mass) / totalMass;
+
+                // Mantém a estrela mais massiva (i), absorve a mais pequena (j)
+                stars[i].mass     = totalMass;
+                stars[i].velocity = newVelocity;
+                stars[i].transform.position = newPosition;
+                stars[i].UpdateAppearance();
+
+                Destroy(stars[j].gameObject);
+                stars.RemoveAt(j);
+                i--; // ajusta o índice após remoção
+                break;
+            }
         }
     }
 }
