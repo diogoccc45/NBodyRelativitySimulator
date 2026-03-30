@@ -6,7 +6,12 @@ public class CameraFly : MonoBehaviour
     public float speed = 100f;
 
     [Header("Configurações de Rotação")]
-    public float sensitivity = 0.15f; // Adicionada a caixa de sensitivity com valor base mais suave
+    public float sensitivity = 0.15f;
+
+    [Header("Sistema de Foco")]
+    public MouseInteraction mouseInteraction; // Referência ao script que guarda o último objeto
+    public float focusDistance = 30f;          // Distância ideal para observar o objeto
+    public float focusSmoothSpeed = 5f;        // Velocidade da viagem de regresso
 
     void Update()
     {
@@ -40,5 +45,42 @@ public class CameraFly : MonoBehaviour
         // Turbo
         if (Keyboard.current.leftShiftKey.isPressed) speed = 500f; 
         else speed = 100f;
+
+        // Lógica para voltar ao último objeto (Tecla F)
+        if (Keyboard.current.fKey.wasPressedThisFrame)
+        {
+            if (mouseInteraction != null && mouseInteraction.lastCreatedObject != null)
+            {
+                StopAllCoroutines(); // Para qualquer movimento de foco anterior
+                StartCoroutine(FocusOnLastObject(mouseInteraction.lastCreatedObject.transform.position));
+            }
+        }
+    }
+
+    // Coroutine para mover a câmara suavemente até ao último astro criado
+    System.Collections.IEnumerator FocusOnLastObject(Vector3 targetPos)
+    {
+        float elapsed = 0;
+        Vector3 startPos = transform.position;
+        Quaternion startRot = transform.rotation;
+
+        // Calculei onde a câmara deve parar
+        Vector3 directionToCam = (startPos - targetPos).normalized;
+        if (directionToCam == Vector3.zero) directionToCam = -Vector3.forward;
+        Vector3 endPos = targetPos + (directionToCam * focusDistance);
+
+        // Rotação final olhando diretamente para o objeto
+        Quaternion endRot = Quaternion.LookRotation(targetPos - endPos);
+
+        while (elapsed < 1.0f)
+        {
+            elapsed += Time.deltaTime * focusSmoothSpeed;
+            
+            // Move e roda ao mesmo tempo usando interpolação
+            transform.position = Vector3.Lerp(startPos, endPos, elapsed);
+            transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed);
+            
+            yield return null;
+        }
     }
 }

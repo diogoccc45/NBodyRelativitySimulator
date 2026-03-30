@@ -62,13 +62,30 @@ public class StarComponent : MonoBehaviour
         // Muda a cor do Trail Renderer
         if (starTrail != null)
         {
-            starTrail.material = new Material(starTrail.material);
-            starTrail.material.SetColor("_BaseColor", targetColor);
-            starTrail.material.SetColor("_Color", targetColor);
-            // Vou forçar o rasto a ser sólido e colorido
-            starTrail.startColor = targetColor;
-            starTrail.endColor = new Color(targetColor.r, targetColor.g, targetColor.b, 0f);
-            starTrail.startWidth = 0.1f * scale;
+            // Criar o gradiente
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(targetColor, 0.0f), new GradientColorKey(targetColor, 1.0f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.8f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) }
+            );
+            starTrail.colorGradient = gradient;
+
+            if (transform.parent != null) 
+            {
+                // Valores para o Laboratório
+                starTrail.startWidth = 0.5f; 
+                starTrail.endWidth = 0.05f;
+            }
+            else 
+            {
+                // Valores para o Modo User Control
+                starTrail.startWidth = 0.1f * scale;
+                starTrail.endWidth = 0.02f;
+            }
+            
+            // Força a atualização do material
+            if (starTrail.material.HasProperty("_BaseColor"))
+                starTrail.material.SetColor("_BaseColor", targetColor);
         }
     }
 }

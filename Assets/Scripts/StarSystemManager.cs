@@ -38,18 +38,27 @@ public class StarSystemManager : MonoBehaviour
     }
 
     // Função para criar uma estrela (Modo User Control)
-    public void CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
+    // Agora retorna GameObject para o sistema de foco
+    public GameObject CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
     {
-        CreateStarCustom(starPrefab, position, initialVelocity, mass);
+        return CreateStarCustom(starPrefab, position, initialVelocity, mass);
     }
 
     // Permite criar qualquer prefab (Estrela ou Planeta) vindo do MouseInteraction
-    public void CreateStarCustom(GameObject prefab, Vector3 position, Vector3 initialVelocity, float mass)
+    // Mudado de 'public void' para 'public GameObject'
+    public GameObject CreateStarCustom(GameObject prefab, Vector3 position, Vector3 initialVelocity, float mass)
     {
-        if (prefab == null) return;
+        if (prefab == null) return null;
 
         GameObject obj = Instantiate(prefab, position, Quaternion.identity);
         obj.transform.parent = this.transform;
+
+        // --- GARANTE QUE O TRAIL APARECE E ESTÁ LIMPO ---
+        if (obj.TryGetComponent<TrailRenderer>(out var tr))
+        {
+            tr.enabled = true;
+            tr.Clear(); // Limpa rastos residuais do momento da criação
+        }
 
         StarComponent sc = obj.GetComponent<StarComponent>();
         if (sc != null)
@@ -62,6 +71,8 @@ public class StarSystemManager : MonoBehaviour
 
             stars.Add(sc);
         }
+
+        return obj; // Retorna o objeto criado para o MouseInteraction guardar a referência
     }
 
     public void ResetSimulation()
@@ -73,7 +84,7 @@ public class StarSystemManager : MonoBehaviour
         {
             if (sc!= null)
             {
-                Destroy(sc.gameObject);
+                if (sc.gameObject != null) Destroy(sc.gameObject);
             }
         }
         stars.Clear();

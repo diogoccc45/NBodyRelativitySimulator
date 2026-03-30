@@ -742,7 +742,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1948625232}
         m_TargetAssemblyTypeName: MouseInteraction, Assembly-CSharp
         m_MethodName: MudarTipo
         m_Mode: 6
@@ -1614,6 +1614,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraFly
   speed: 50
   sensitivity: 2
+  mouseInteraction: {fileID: 1948625232}
+  focusDistance: 30
+  focusSmoothSpeed: 5
 --- !u!114 &963194230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2360,6 +2363,7 @@ MonoBehaviour:
   dragLine: {fileID: 1948625233}
   launchForceMultiplier: 0.5
   dragThreshold: 0.3
+  lastCreatedObject: {fileID: 0}
   spawnDistance: 30
 --- !u!120 &1948625233
 LineRenderer:

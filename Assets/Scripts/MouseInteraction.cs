@@ -27,6 +27,9 @@ public class MouseInteraction : MonoBehaviour
     public float launchForceMultiplier = 0.5f;
     public float dragThreshold = 0.3f; // Distância mínima para validar o lançamento
 
+    [HideInInspector] 
+    public GameObject lastCreatedObject; // Variável para a câmara saber onde voltar
+
     void Start()
     {
         currentPrefab = starPrefab;
@@ -137,14 +140,16 @@ public class MouseInteraction : MonoBehaviour
                 // SE segurar SHIFT, cria parado
                 if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
                 {
-                    manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
+                    // Guardamos a referência para o sistema de foco
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
                 }
                 // SENÃO, verifica se o arrasto é suficiente para o lançamento
                 else if (dragDistance > dragThreshold)
                 {
                     // Vetor de lançamento: Ponto inicial menos ponto final (direção oposta ao arrasto)
                     Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
-                    manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, massSlider.value);
+                    // Guardamos a referência para o sistema de foco
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, massSlider.value);
                 }
             }
         }

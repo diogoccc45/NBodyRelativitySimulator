@@ -1077,6 +1077,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraFly
   speed: 100
   sensitivity: 2
+  mouseInteraction: {fileID: 1948625232}
+  focusDistance: 30
+  focusSmoothSpeed: 5
 --- !u!1 &968698298
 GameObject:
   m_ObjectHideFlags: 0
@@ -1778,6 +1781,7 @@ MonoBehaviour:
   dragLine: {fileID: 1948625233}
   launchForceMultiplier: 0.5
   dragThreshold: 0.3
+  lastCreatedObject: {fileID: 0}
   spawnDistance: 30
 --- !u!120 &1948625233
 LineRenderer:
