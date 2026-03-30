@@ -43,6 +43,7 @@ public class StarSystemManager : MonoBehaviour
     }
 
     // Função para criar uma estrela (Modo User Control)
+    // Agora retorna GameObject para o sistema de foco
     public GameObject CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
     {
         return CreateStarCustom(starPrefab, position, initialVelocity, mass);
@@ -57,6 +58,7 @@ public class StarSystemManager : MonoBehaviour
         GameObject obj = Instantiate(prefab, position, Quaternion.identity);
         obj.transform.parent = this.transform;
 
+        // --- GARANTE QUE O TRAIL APARECE E ESTÁ LIMPO ---
         if (obj.TryGetComponent<TrailRenderer>(out var tr))
         {
             tr.enabled = true;
@@ -78,7 +80,8 @@ public class StarSystemManager : MonoBehaviour
         return obj; // Retorna o objeto criado para o MouseInteraction guardar a referência
     }
 
-    // Devolve a estrela (não planeta) mais próxima de uma posição, usado pelo MouseInteraction para calcular a velocidade orbital ideal.
+    // Devolve a estrela (não planeta) mais próxima de uma posição — usado pelo MouseInteraction
+    // para calcular a velocidade orbital ideal.
     public StarComponent GetNearestStar(Vector3 position)
     {
         StarComponent nearest  = null;
@@ -165,6 +168,9 @@ public class StarSystemManager : MonoBehaviour
                 float dist = Vector3.Distance(stars[i].transform.position,
                                               stars[j].transform.position);
                 if (dist > mergeDistance) continue;
+
+                // Nunca fundir planetas — só estrela com estrela
+                if (stars[i].isPlanet || stars[j].isPlanet) continue;
 
                 // Conservação de momento: p = m*v → v_final = (m1*v1 + m2*v2) / (m1+m2)
                 float   totalMass    = stars[i].mass + stars[j].mass;
