@@ -88,4 +88,58 @@ public class StarComponent : MonoBehaviour
                 starTrail.material.SetColor("_BaseColor", targetColor);
         }
     }
+
+    // Animação de destruição do planeta — encolhe e fica brilhante antes de desaparecer
+    public System.Collections.IEnumerator DestroyAnimation()
+    {
+        float duration = 0.4f;
+        float elapsed  = 0f;
+
+        Vector3 startScale = transform.localScale;
+        Color   startColor = starRenderer != null ? starRenderer.material.color : Color.white;
+        Color   flashColor = Color.white;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t  = elapsed / duration;
+
+            // Encolhe para zero
+            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, t);
+
+            // Flash de branco
+            if (starRenderer != null)
+            {
+                Color c = Color.Lerp(startColor, flashColor, t);
+                starRenderer.material.color = c;
+                starRenderer.material.SetColor("_EmissionColor", c * 4f);
+            }
+
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
+    // Pulso de brilho na estrela ao absorver um planeta
+    public System.Collections.IEnumerator AbsorptionPulse()
+    {
+        if (starRenderer == null) yield break;
+
+        float duration  = 0.5f;
+        float elapsed   = 0f;
+        Color baseColor = starRenderer.material.color;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t  = Mathf.Sin((elapsed / duration) * Mathf.PI); // curva de pulso suave
+
+            starRenderer.material.SetColor("_EmissionColor", baseColor * Mathf.Lerp(3f, 8f, t));
+            yield return null;
+        }
+
+        // Repõe a emissão normal
+        starRenderer.material.SetColor("_EmissionColor", baseColor * 3f);
+    }
 }

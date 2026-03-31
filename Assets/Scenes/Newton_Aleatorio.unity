@@ -738,7 +738,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1948625230}
         m_TargetAssemblyTypeName: StarSystemManager, Assembly-CSharp
         m_MethodName: ResetSimulation
         m_Mode: 1
@@ -1796,9 +1796,13 @@ MonoBehaviour:
   planetPrefab: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
   previewStar: {fileID: 1735853151137683551, guid: 02a9a4a898986eb4ca16725c3c8e97ac, type: 3}
   ghostMaterial: {fileID: 2100000, guid: cb3c12a8ac531ff468709e76502f3bd0, type: 2}
-  dragLine: {fileID: 1948625233}
+  dragLine: {fileID: 0}
   launchForceMultiplier: 0.5
   dragThreshold: 0.3
+  trajectoryLine: {fileID: 0}
+  trajectorySteps: 150
+  trajectoryStepSize: 0.05
+  planetSoftening: 50
   lastCreatedObject: {fileID: 0}
   spawnDistance: 30
 --- !u!120 &1948625233

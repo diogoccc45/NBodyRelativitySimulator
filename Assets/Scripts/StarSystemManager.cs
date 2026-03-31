@@ -80,8 +80,14 @@ public class StarSystemManager : MonoBehaviour
         return obj; // Retorna o objeto criado para o MouseInteraction guardar a referência
     }
 
-    // Devolve a estrela (não planeta) mais próxima de uma posição — usado pelo MouseInteraction
-    // para calcular a velocidade orbital ideal.
+    // Devolve todas as estrelas (não planetas) para a simulação da trajetória
+    public List<StarComponent> GetStars()
+    {
+        stars.RemoveAll(s => s == null);
+        return stars;
+    }
+
+    // Devolve a estrela (não planeta) mais próxima de uma posição, usado pelo MouseInteraction para calcular a velocidade orbital ideal.
     public StarComponent GetNearestStar(Vector3 position)
     {
         StarComponent nearest  = null;
@@ -153,6 +159,40 @@ public class StarSystemManager : MonoBehaviour
         // Fusão de estrelas (só ativa se enableMerging = true)
         if (enableMerging)
             ProcessMerges();
+
+        // Colisão planeta-estrela — planeta é destruído ao entrar no raio da estrela
+        ProcessPlanetCollisions();
+    }
+
+    void ProcessPlanetCollisions()
+    {
+        for (int i = stars.Count - 1; i >= 0; i--)
+        {
+            if (stars[i] == null || !stars[i].isPlanet) continue;
+
+            for (int j = 0; j < stars.Count; j++)
+            {
+                if (stars[j] == null || stars[j].isPlanet) continue;
+
+                // Raio da estrela baseado na sua escala atual
+                float starRadius = stars[j].transform.localScale.x * 0.5f;
+                float dist       = Vector3.Distance(stars[i].transform.position,
+                                                    stars[j].transform.position);
+
+                if (dist > starRadius) continue;
+
+                // Estrela absorve a massa do planeta e pulsa
+                stars[j].mass += stars[i].mass * 0.1f; // absorve 10% da massa do planeta
+                stars[j].UpdateAppearance();
+                stars[j].StartCoroutine(stars[j].AbsorptionPulse());
+
+                // Planeta desaparece com animação
+                StarComponent planet = stars[i];
+                stars.RemoveAt(i);
+                planet.StartCoroutine(planet.DestroyAnimation());
+                break;
+            }
+        }
     }
 
     void ProcessMerges()
