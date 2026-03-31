@@ -18,6 +18,8 @@ public class StarSystemManager : MonoBehaviour
     
     // Lista que guarda as estrelas para o cálculo da gravidade
     private List<StarComponent> stars = new List<StarComponent>();
+    private bool isPaused = false;
+    public void SetPaused(bool paused) => isPaused = paused;
 
     void Start()
     {
@@ -43,14 +45,12 @@ public class StarSystemManager : MonoBehaviour
     }
 
     // Função para criar uma estrela (Modo User Control)
-    // Agora retorna GameObject para o sistema de foco
     public GameObject CreateStar(Vector3 position, Vector3 initialVelocity, float mass)
     {
         return CreateStarCustom(starPrefab, position, initialVelocity, mass);
     }
 
     // Permite criar qualquer prefab (Estrela ou Planeta) vindo do MouseInteraction
-    // Mudado de 'public void' para 'public GameObject'
     public GameObject CreateStarCustom(GameObject prefab, Vector3 position, Vector3 initialVelocity, float mass)
     {
         if (prefab == null) return null;
@@ -58,7 +58,6 @@ public class StarSystemManager : MonoBehaviour
         GameObject obj = Instantiate(prefab, position, Quaternion.identity);
         obj.transform.parent = this.transform;
 
-        // --- GARANTE QUE O TRAIL APARECE E ESTÁ LIMPO ---
         if (obj.TryGetComponent<TrailRenderer>(out var tr))
         {
             tr.enabled = true;
@@ -117,7 +116,6 @@ public class StarSystemManager : MonoBehaviour
         }
         stars.Clear();
 
-        // Agora usa as variáveis do inspector no reset também
         if (starCount > 0)
         {
             SpawnInitialGalaxy(starCount, spawnRadius);
@@ -126,6 +124,8 @@ public class StarSystemManager : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (isPaused) return;
+
         float dt = Time.fixedDeltaTime * timeScale;
 
         // Limpeza de referências nulas (caso estrelas colidam e desapareçam)
