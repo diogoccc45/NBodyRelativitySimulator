@@ -1223,6 +1223,7 @@ MonoBehaviour:
   followOffset: {x: 0, y: 2, z: -8}
   followSmoothSpeed: 8
   sensitivity: 0.15
+  inspector: {fileID: 0}
 --- !u!1 &968698298
 GameObject:
   m_ObjectHideFlags: 0
@@ -1759,7 +1760,7 @@ MonoBehaviour:
       - m_Target: {fileID: 237693425}
         m_TargetAssemblyTypeName: SimulationTimeline, Assembly-CSharp
         m_MethodName: OnSliderChanged
-        m_Mode: 4
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -1949,7 +1950,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Massa Selecionada:---
+  m_text: Selected Mass:---
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

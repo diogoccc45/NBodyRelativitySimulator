@@ -7,6 +7,7 @@ public class StarComponent : MonoBehaviour
     
     // Booleano para distinguir se este objeto é um planeta
     public bool isPlanet = false;
+    public int mergeCount = 0; // número de fusões que este objeto sofreu
 
     private Renderer starRenderer;
     private TrailRenderer starTrail;
@@ -21,10 +22,23 @@ public class StarComponent : MonoBehaviour
     // Esta função será chamada sempre que a massa mudar
     public void UpdateAppearance()
     {
-        // Criamos uma cor baseada na massa
-        // Massa baixa (10) = Vermelho | Massa alta (500) = Ciano/Azul
         float t = Mathf.InverseLerp(10f, 500f, mass);
-        Color targetColor = Color.Lerp(Color.red, Color.cyan, t);
+
+        // Harvard spectral sequence: massa "pequena" = red (M-type), massa "elevada" = blue-white (O/B-type)
+        // 0.0 (10) -> red (M-type dwarf)
+        // 0.3 (157) -> orange (K-type)
+        // 0.5 (255) -> yellow (G-type, Sun-like)
+        // 0.7 (360) -> white (F/A-type)
+        // 1.0 (500) -> blue-white (B/O-type) ------ COPIADO DE PAPER
+        Color targetColor;
+        if (t < 0.3f)
+            targetColor = Color.Lerp(new Color(1.0f, 0.05f, 0.05f), new Color(1.0f, 0.5f, 0.2f), t / 0.3f);
+        else if (t < 0.5f)
+            targetColor = Color.Lerp(new Color(1.0f, 0.5f, 0.2f), new Color(1.0f, 0.95f, 0.6f), (t - 0.3f) / 0.2f);
+        else if (t < 0.7f)
+            targetColor = Color.Lerp(new Color(1.0f, 0.95f, 0.6f), new Color(1.0f, 1.0f, 1.0f), (t - 0.5f) / 0.2f);
+        else
+            targetColor = Color.Lerp(new Color(1.0f, 1.0f, 1.0f), new Color(0.5f, 0.7f, 1.0f), (t - 0.7f) / 0.3f);
 
         if (isPlanet)
         {
@@ -42,20 +56,28 @@ public class StarComponent : MonoBehaviour
 
         transform.localScale = Vector3.one * scale;
 
-        // Muda a cor do Material (M_Star_Base) apenas nesta instância
+        // Muda a cor do Material apenas nesta instância
         if (starRenderer != null)
         {
             starRenderer.material.color = targetColor;
+            starRenderer.material.SetColor("_BaseColor", targetColor);
 
-            // Se for planeta, desligamos o brilho (Emission)
             if (isPlanet)
             {
                 starRenderer.material.DisableKeyword("_EMISSION");
+                starRenderer.material.SetColor("_EmissionColor", Color.black);
             }
             else
             {
+                // Emissão com intensidade fixa para não distorcer a cor
+                // Multiplicar só o brilho (HDR) sem alterar o hue
+                Color emissionColor = new Color(
+                    targetColor.r * targetColor.r,
+                    targetColor.g * targetColor.g,
+                    targetColor.b * targetColor.b
+                ) * 2.5f;
                 starRenderer.material.EnableKeyword("_EMISSION");
-                starRenderer.material.SetColor("_EmissionColor", targetColor * 3.0f);
+                starRenderer.material.SetColor("_EmissionColor", emissionColor);
             }
         }
 

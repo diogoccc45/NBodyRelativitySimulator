@@ -8,15 +8,15 @@ public class SimulationTimeline : MonoBehaviour
     public StarSystemManager manager;
 
     [Header("UI")]
-    public Slider timelineSlider;   // barra de progresso
-    public Image playPauseIcon;    // ícone de play/pause
+    public Slider timelineSlider; // barra de progresso
+    public Image playPauseIcon; // ícone de play/pause
     public Sprite playSprite;
     public Sprite pauseSprite;
 
     [Header("Configurações")]
-    public float recordInterval  = 0.05f;  // grava a cada 50ms (20 snapshots/s)
-    public float maxHistoryTime  = 30f;    // 30 segundos de histórico
-    public float rewindSpeed     = 0.5f;   // velocidade de J e L
+    public float recordInterval = 0.05f; // grava a cada 50ms (20 snapshots/s)
+    public float maxHistoryTime = 30f; // 30 segundos de histórico
+    public float rewindSpeed = 0.5f; // velocidade de J e L
 
     // Estrutura de snapshot
     struct ObjectSnapshot
@@ -26,7 +26,7 @@ public class SimulationTimeline : MonoBehaviour
         public Vector3 velocity;
         public float mass;
         public bool isPlanet;
-        public bool exists;  // false = objeto foi destruído neste frame
+        public bool exists; // false = objeto foi destruído neste frame
     }
     struct FrameSnapshot
     {
@@ -39,7 +39,7 @@ public class SimulationTimeline : MonoBehaviour
     float recordTimer = 0f;
     bool isPaused = false;
     bool isRewinding = false;
-    int replayIndex = -1;        // -1 = live
+    int replayIndex = -1; // -1 = live
     float rewindTimer = 0f;
 
     int maxFrames => Mathf.CeilToInt(maxHistoryTime / recordInterval);
@@ -90,15 +90,12 @@ public class SimulationTimeline : MonoBehaviour
             }
         }
 
-        // SLIDER 
-        if (timelineSlider != null)
+        // SLIDER — só atualiza automaticamente quando em live (não pausado, não em replay)
+        // Quando o utilizador arrasta o slider, o OnSliderChanged trata da atualização
+        if (timelineSlider != null && !isPaused && replayIndex == -1)
         {
-            // Atualiza o slider para refletir a posição atual
             if (history.Count > 1)
-            {
-                int idx = replayIndex == -1 ? history.Count - 1 : replayIndex;
-                timelineSlider.SetValueWithoutNotify((float)idx / (history.Count - 1));
-            }
+                timelineSlider.SetValueWithoutNotify((float)(history.Count - 1) / (history.Count - 1));
         }
     }
 

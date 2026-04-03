@@ -3,13 +3,18 @@ using UnityEngine.InputSystem;
 public class StarFollowCamera : MonoBehaviour
 {
     [Header("Configurações de Follow")]
-    public Vector3 followOffset      = new Vector3(0f, 2f, -8f);
-    public float   followSmoothSpeed = 8f;
-    public float   sensitivity       = 0.15f;
-    private bool          isFollowing  = false;
-    private Transform     followTarget = null;
-    private StarComponent followStar   = null;
-    private CameraFly     cameraFly    = null;
+    public Vector3 followOffset = new Vector3(0f, 2f, -8f);
+    public float followSmoothSpeed = 8f;
+    public float sensitivity = 0.15f;
+
+    [Header("Inspetor")]
+    public ObjectInspector inspector;
+
+    private bool isFollowing = false;
+    private bool inspectorVisible = true;
+    private Transform followTarget = null;
+    private StarComponent followStar = null;
+    private CameraFly cameraFly = null;
 
     void Awake()
     {
@@ -39,6 +44,15 @@ public class StarFollowCamera : MonoBehaviour
         }
 
         if (!isFollowing) return;
+
+        // Toggle do painel com I
+        if (Keyboard.current.iKey.wasPressedThisFrame && inspector != null)
+        {
+            inspectorVisible = !inspectorVisible;
+            if (inspectorVisible) inspector.Show(followStar);
+            else inspector.Hide();
+        }
+
         UpdateFollow();
     }
 
@@ -51,7 +65,7 @@ public class StarFollowCamera : MonoBehaviour
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
             // Roda o offset à volta do objeto em vez de rodar a câmara no lugar
-            Quaternion yaw   = Quaternion.AngleAxis( delta.x * sensitivity, Vector3.up);
+            Quaternion yaw = Quaternion.AngleAxis( delta.x * sensitivity, Vector3.up);
             Quaternion pitch = Quaternion.AngleAxis(-delta.y * sensitivity, transform.right);
             followOffset = pitch * yaw * followOffset;
         }
@@ -60,8 +74,8 @@ public class StarFollowCamera : MonoBehaviour
         if (followStar != null && followStar.velocity.sqrMagnitude > 0.01f)
             behindDir = -followStar.velocity.normalized;
 
-        Quaternion moveRot    = Quaternion.LookRotation(-behindDir);
-        Vector3    desiredPos = followTarget.position + moveRot * followOffset;
+        Quaternion moveRot = Quaternion.LookRotation(-behindDir);
+        Vector3 desiredPos = followTarget.position + moveRot * followOffset;
 
         transform.position = Vector3.Lerp(transform.position, desiredPos,
                                           followSmoothSpeed * Time.deltaTime);
@@ -70,19 +84,22 @@ public class StarFollowCamera : MonoBehaviour
 
     public void EnterFollow(StarComponent star)
     {
-        isFollowing  = true;
+        isFollowing = true;
         followTarget = star.transform;
-        followStar   = star;
+        followStar = star;
         if (cameraFly != null) cameraFly.enabled = false;
+        inspectorVisible = true;
+        if (inspector != null) inspector.Show(star);
         Debug.Log($"[StarFollowCamera] A seguir '{star.gameObject.name}'");
     }
 
     void ExitFollow()
     {
-        isFollowing  = false;
+        isFollowing = false;
         followTarget = null;
-        followStar   = null;
+        followStar = null;
         if (cameraFly != null) cameraFly.enabled = true;
+        if (inspector != null) inspector.Hide();
         Debug.Log("[StarFollowCamera] Voo livre.");
     }
 }

@@ -20,6 +20,9 @@ public class StarSystemManager : MonoBehaviour
     private List<StarComponent> stars = new List<StarComponent>();
     private bool isPaused = false;
     public void SetPaused(bool paused) => isPaused = paused;
+    // Contadores para nomes automáticos
+    private int starCounter = 0;
+    private int planetCounter = 0;
 
     void Start()
     {
@@ -69,7 +72,13 @@ public class StarSystemManager : MonoBehaviour
         {
             sc.mass = mass;
             sc.velocity = initialVelocity;
-            
+
+            // Nome automático: Star #1, Planet #1, etc.
+            bool isPlanet = sc.isPlanet;
+            obj.name = isPlanet
+                ? $"Planet #{++planetCounter}"
+                : $"Star #{++starCounter}";
+
             // Atualiza a cor logo ao nascer baseado na massa
             sc.UpdateAppearance();
 
@@ -89,8 +98,8 @@ public class StarSystemManager : MonoBehaviour
     // Devolve a estrela (não planeta) mais próxima de uma posição, usado pelo MouseInteraction para calcular a velocidade orbital ideal.
     public StarComponent GetNearestStar(Vector3 position)
     {
-        StarComponent nearest  = null;
-        float         minDist  = float.MaxValue;
+        StarComponent nearest = null;
+        float minDist = float.MaxValue;
 
         foreach (StarComponent sc in stars)
         {
@@ -115,6 +124,8 @@ public class StarSystemManager : MonoBehaviour
             }
         }
         stars.Clear();
+        starCounter = 0;
+        planetCounter = 0;
 
         if (starCount > 0)
         {
@@ -176,7 +187,7 @@ public class StarSystemManager : MonoBehaviour
 
                 // Raio da estrela baseado na sua escala atual
                 float starRadius = stars[j].transform.localScale.x * 0.5f;
-                float dist       = Vector3.Distance(stars[i].transform.position,
+                float dist = Vector3.Distance(stars[i].transform.position,
                                                     stars[j].transform.position);
 
                 if (dist > starRadius) continue;
@@ -213,15 +224,16 @@ public class StarSystemManager : MonoBehaviour
                 if (stars[i].isPlanet || stars[j].isPlanet) continue;
 
                 // Conservação de momento: p = m*v → v_final = (m1*v1 + m2*v2) / (m1+m2)
-                float   totalMass    = stars[i].mass + stars[j].mass;
-                Vector3 newVelocity  = (stars[i].velocity * stars[i].mass
+                float totalMass = stars[i].mass + stars[j].mass;
+                Vector3 newVelocity = (stars[i].velocity * stars[i].mass
                                       + stars[j].velocity * stars[j].mass) / totalMass;
-                Vector3 newPosition  = (stars[i].transform.position * stars[i].mass
+                Vector3 newPosition = (stars[i].transform.position * stars[i].mass
                                       + stars[j].transform.position * stars[j].mass) / totalMass;
 
                 // Mantém a estrela mais massiva (i), absorve a mais pequena (j)
-                stars[i].mass     = totalMass;
+                stars[i].mass = totalMass;
                 stars[i].velocity = newVelocity;
+                stars[i].mergeCount += stars[j].mergeCount + 1;
                 stars[i].transform.position = newPosition;
                 stars[i].UpdateAppearance();
 

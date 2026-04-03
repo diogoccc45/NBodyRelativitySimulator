@@ -31,7 +31,7 @@ public class MouseInteraction : MonoBehaviour
 
     [Header("Previsão de Trajetória")]
     public LineRenderer trajectoryLine; // LineRenderer separado para a previsão
-    public int   trajectorySteps    = 150;
+    public int trajectorySteps = 150;
     public float trajectoryStepSize = 0.05f; // tamanho de cada passo de simulação
     [Tooltip("Softening factor para planetas — evita que entrem na estrela")]
     public float planetSoftening = 40f;
@@ -68,9 +68,8 @@ public class MouseInteraction : MonoBehaviour
         {
             massSlider.minValue = 0.1f;
             massSlider.maxValue = 10f;
-            massSlider.value = 1;
+            massSlider.value = 1.0f;
         }
-
         // Reset ao fantasma para mudar de visual no ecrã
         ResetGhost();
     }
@@ -99,9 +98,20 @@ public class MouseInteraction : MonoBehaviour
 
     void Update()
     {
-        // Atualiza o texto da massa
+        // Update ao texto da massa para as unidades "reais"
         if (massText != null && massSlider != null)
-            massText.text = "Massa a criar: " + massSlider.value.ToString("F2");
+        {
+            if (currentPrefab == starPrefab)
+            {
+                float massReal = massSlider.value * massStarToSolar;
+                massText.text = $"Mass: {massReal:F3} M_sun";
+            }
+            else
+            {
+                float massReal = massSlider.value * massPlanetToEarth;
+                massText.text = $"Mass: {massReal:F2} M_earth";
+            }
+        }
 
         HandleInput();
     }
@@ -184,8 +194,8 @@ public class MouseInteraction : MonoBehaviour
         {
             // Se não está a arrastar, o fantasma segue o rato normalmente para exploração
             MovePreview();
-            if (dragLine        != null) dragLine.enabled        = false;
-            if (trajectoryLine  != null) trajectoryLine.enabled  = false;
+            if (dragLine != null) dragLine.enabled = false;
+            if (trajectoryLine != null) trajectoryLine.enabled = false;
         }
     }
 
@@ -212,16 +222,22 @@ public class MouseInteraction : MonoBehaviour
 
             if (currentPrefab == starPrefab)
             {
-                targetColor = Color.Lerp(Color.red, Color.cyan, t);
+                // Harvard spectral sequence - PAPER
+                if (t < 0.3f)
+                    targetColor = Color.Lerp(new Color(1.0f, 0.2f, 0.1f), new Color(1.0f, 0.5f, 0.2f), t / 0.3f);
+                else if (t < 0.5f)
+                    targetColor = Color.Lerp(new Color(1.0f, 0.5f, 0.2f), new Color(1.0f, 0.95f, 0.6f), (t - 0.3f) / 0.2f);
+                else if (t < 0.7f)
+                    targetColor = Color.Lerp(new Color(1.0f, 0.95f, 0.6f), new Color(1.0f, 1.0f, 1.0f), (t - 0.5f) / 0.2f);
+                else
+                    targetColor = Color.Lerp(new Color(1.0f, 1.0f, 1.0f), new Color(0.5f, 0.7f, 1.0f), (t - 0.7f) / 0.3f);
             }
             else
             {
-                // Gradiente do Sistema Solar para Planetas
-                // 0.0 (Mercúrio/Marte) -> 0.5 (Júpiter/Saturno) -> 1.0 (Neptuno)
                 if (t < 0.5f)
-                    targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t * 2); // Castanho a Bege
+                    targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t * 2);
                 else
-                    targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t - 0.5f) * 2); // Bege a Azul
+                    targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t - 0.5f) * 2);
             }
 
             targetColor.a = 0.4f;
@@ -231,6 +247,9 @@ public class MouseInteraction : MonoBehaviour
     }
 
     public float spawnDistance = 20f;
+    // Conversão de fatores (game units -> realidade)
+    const float massStarToSolar = 0.004f; // 250 unidades = 0.004 M_sun
+    const float massPlanetToEarth = 1.0f; // 1 unidade = 1.0 M_earth
 
     // Simula a trajetória do planeta em memória e desenha-a com o trajectoryLine
     void DrawTrajectoryPreview(Vector3 startPos, Vector3 startVel)
@@ -286,13 +305,13 @@ public class MouseInteraction : MonoBehaviour
         if (nearest == null) return Vector3.zero;
 
         Vector3 toStar = nearest.transform.position - position;
-        float   r      = toStar.magnitude;
+        float r = toStar.magnitude;
         if (r < 0.01f) return Vector3.zero;
 
         float speed = Mathf.Sqrt(manager.G * nearest.mass / r);
 
-        // Cross de Vector3.up com o vetor estrela->planeta dá sempre a tangente orbital correta no plano horizontal, independentemente do lado em que o planeta está colocado
-        Vector3 fromStar      = -toStar.normalized;
+        // Cross de Vector3.up com o vetor estrela -> planeta dá sempre a tangente orbital correta no plano horizontal, independentemente do lado em que o planeta está colocado
+        Vector3 fromStar = -toStar.normalized;
         Vector3 perpendicular = Vector3.Cross(Vector3.up, fromStar).normalized;
 
         return perpendicular * speed;
