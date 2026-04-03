@@ -36,7 +36,12 @@ public class MouseInteraction : MonoBehaviour
     [Tooltip("Softening factor para planetas — evita que entrem na estrela")]
     public float planetSoftening = 40f;
 
-    [HideInInspector] 
+    [Header("Linha de Distância + HUD")]
+    public DashedLine starToMouseLine; // linha tracejada do cursor à estrela mais próxima
+    public TextMeshProUGUI distanceText; // texto HUD com distância em AU
+    private bool showDistanceLine = true; // toggle com T
+
+    [HideInInspector]
     public GameObject lastCreatedObject; // Variável para a câmara saber onde voltar
 
     void Start()
@@ -113,6 +118,7 @@ public class MouseInteraction : MonoBehaviour
             }
         }
 
+        UpdateDistanceHUD();
         HandleInput();
     }
 
@@ -248,8 +254,9 @@ public class MouseInteraction : MonoBehaviour
 
     public float spawnDistance = 20f;
     // Conversão de fatores (game units -> realidade)
-    const float massStarToSolar = 0.004f; // 250 unidades = 0.004 M_sun
-    const float massPlanetToEarth = 0.333f; // 1 unidade = 0.333 M_earth
+    const float massStarToSolar   = 0.004f;  // 250 unidades = 1.0 M_sun
+    const float massPlanetToEarth = 0.333f;  // 1 unidade = 0.333 M_earth
+    const float distToAU          = 0.1f;    // 1 game unit = 0.1 AU
 
     // Simula a trajetória do planeta em memória e desenha-a com o trajectoryLine
     void DrawTrajectoryPreview(Vector3 startPos, Vector3 startVel)
@@ -286,10 +293,53 @@ public class MouseInteraction : MonoBehaviour
         }
     }
 
+    void UpdateDistanceHUD()
+    {
+        // Toggle da linha com T
+        if (Keyboard.current.tKey.wasPressedThisFrame)
+            showDistanceLine = !showDistanceLine;
+
+        if (currentPrefab != planetPrefab)
+        {
+            if (starToMouseLine != null) starToMouseLine.Hide();
+            if (distanceText != null) distanceText.enabled = false;
+            return;
+        }
+
+        Vector3 mousePos = GetMouseWorldPos();
+        StarComponent nearest  = manager.GetNearestStar(mousePos);
+
+        if (nearest == null)
+        {
+            if (starToMouseLine != null) starToMouseLine.Hide();
+            if (distanceText != null) distanceText.enabled = false;
+            return;
+        }
+
+        float dist = Vector3.Distance(mousePos, nearest.transform.position);
+        float distReal = dist * distToAU;
+
+        // Texto de distância — sempre visível no modo planeta
+        if (distanceText != null)
+        {
+            distanceText.enabled = true;
+            distanceText.text = $"Dist. to nearest star: {distReal:F2} AU";
+        }
+
+        // Linha tracejada cursor -> estrela mais próxima (toggle com T)
+        if (starToMouseLine != null)
+        {
+            if (showDistanceLine)
+                starToMouseLine.SetPoints(mousePos, nearest.transform.position);
+            else
+                starToMouseLine.Hide();
+        }
+    }
+
     Vector3 GetMouseWorldPos()
     {
         if (Camera.main == null) return Vector3.zero;
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
         Plane plane = new Plane(-Camera.main.transform.forward,
                                 Camera.main.transform.position + Camera.main.transform.forward * spawnDistance);
         if (plane.Raycast(ray, out float distance))

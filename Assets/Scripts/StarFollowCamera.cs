@@ -6,6 +6,12 @@ public class StarFollowCamera : MonoBehaviour
     public Vector3 followOffset = new Vector3(0f, 2f, -8f);
     public float followSmoothSpeed = 8f;
     public float sensitivity = 0.15f;
+    
+    [Header("Distância Automática + Scroll")]
+    public float starRadiusMultiplier = 4f; // offset = raio * este valor
+    public float minDistance = 2f; // distância mínima ao objeto
+    public float maxDistance = 200f; // distância máxima ao objeto
+    public float scrollSpeed = 3f; // velocidade do scroll
 
     [Header("Inspetor")]
     public ObjectInspector inspector;
@@ -60,11 +66,20 @@ public class StarFollowCamera : MonoBehaviour
     {
         if (followTarget == null) { ExitFollow(); return; }
 
+        // Scroll — aproxima ou afasta a câmara
+        float scroll = Mouse.current.scroll.ReadValue().y;
+        if (Mathf.Abs(scroll) > 0.01f)
+        {
+            // Move o offset ao longo da sua direção (aproxima/afasta)
+            float currentDist = followOffset.magnitude;
+            float newDist = Mathf.Clamp(currentDist - scroll * scrollSpeed, minDistance, maxDistance);
+            followOffset = followOffset.normalized * newDist;
+        }
+
         // Rotação com botão direito — orbita à volta do objeto
         if (Mouse.current.rightButton.isPressed)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
-            // Roda o offset à volta do objeto em vez de rodar a câmara no lugar
             Quaternion yaw = Quaternion.AngleAxis( delta.x * sensitivity, Vector3.up);
             Quaternion pitch = Quaternion.AngleAxis(-delta.y * sensitivity, transform.right);
             followOffset = pitch * yaw * followOffset;
@@ -87,10 +102,16 @@ public class StarFollowCamera : MonoBehaviour
         isFollowing = true;
         followTarget = star.transform;
         followStar = star;
+
+        // Calcula offset automático com base no raio da estrela
+        float radius = star.transform.localScale.x * 0.5f;
+        float distance = Mathf.Clamp(radius * starRadiusMultiplier, minDistance, maxDistance);
+        followOffset = new Vector3(0f, distance * 0.3f, -distance);
+
         if (cameraFly != null) cameraFly.enabled = false;
         inspectorVisible = true;
-        if (inspector != null) inspector.Show(star);
-        Debug.Log($"[StarFollowCamera] A seguir '{star.gameObject.name}'");
+        if (inspector!= null) inspector.Show(star);
+        Debug.Log($"[StarFollowCamera] A seguir '{star.gameObject.name}' — distância: {distance:F1}");
     }
 
     void ExitFollow()
