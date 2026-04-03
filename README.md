@@ -34,7 +34,25 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 * Math: Newtonian Vector Physics, Linear Interpolation (Lerp).
 
 ## 🎮 How to Use
-* Stellar Spawn: Click and drag to define the launch vector for a new body.
-* Static Mode: Hold Shift to place an object with zero initial velocity.
-* Configuration: Use the UI Sliders to adjust mass in real-time before spawning.
-* Camera: The simulation supports free-roaming exploration of the generated systems.
+
+### Spawning Objects
+- **Slingshot**: Click and drag to define the launch vector for a new body. The further you drag, the higher the initial velocity.
+- **Static Placement**: Hold `Shift` + click to place an object with zero initial velocity — ideal for placing a star at the center of a system.
+- **Orbital Placement** *(planet mode only)*: Hold `O` + click to automatically calculate and apply the perfect circular orbit velocity around the nearest star.
+- **Switch Type**: Use the UI buttons to toggle between spawning Stars and Planets. Each type has its own mass range configurable via the UI slider.
+
+### Trajectory Preview
+- While dragging in planet mode, a **trajectory preview line** is displayed showing the predicted path based on current gravitational forces. The preview is hidden when using orbital placement (`O`).
+
+### Camera
+- **Free Fly**: Use `WASD` to move through the universe. Hold `Shift` for turbo speed.
+- **Look Around**: Hold the **right mouse button** and move the mouse to rotate the camera.
+- **Focus**: Press `F` to smoothly travel to the last spawned object.
+- **Follow Mode**: `Middle Mouse Button` on any star or planet to follow it in third-person. Right-click to orbit around it. Press `Middle Mouse Button` again to return to free fly.
+
+### Simulation Control
+- **Pause / Resume**: Press `Space` to pause and resume the simulation.
+- **Rewind**: Hold `J` to step backward through the last 30 seconds of simulation history.
+- **Fast-Forward**: Hold `L` to step forward through recorded history.
+- **Timeline Scrubber**: Drag the UI slider to jump to any point in the recorded history.
+- **Rewrite the Future**: Resuming from a past point discards all future history — the simulation continues from that moment as if nothing else had happened.
