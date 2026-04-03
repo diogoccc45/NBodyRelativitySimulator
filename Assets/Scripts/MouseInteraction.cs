@@ -249,7 +249,7 @@ public class MouseInteraction : MonoBehaviour
     public float spawnDistance = 20f;
     // Conversão de fatores (game units -> realidade)
     const float massStarToSolar = 0.004f; // 250 unidades = 0.004 M_sun
-    const float massPlanetToEarth = 1.0f; // 1 unidade = 1.0 M_earth
+    const float massPlanetToEarth = 0.333f; // 1 unidade = 0.333 M_earth
 
     // Simula a trajetória do planeta em memória e desenha-a com o trajectoryLine
     void DrawTrajectoryPreview(Vector3 startPos, Vector3 startVel)

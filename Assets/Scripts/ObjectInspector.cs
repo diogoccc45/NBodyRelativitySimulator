@@ -110,7 +110,9 @@ public class ObjectInspector : MonoBehaviour
         // Atualiza os textos
         string type = target.isPlanet ? "Planet" : "Star";
         if (nameText != null) nameText.text = $"{type}: {target.gameObject.name}";
-        if (massText != null) massText.text = $"Mass: {massReal:F3} M_sun";
+        if (massText != null) massText.text = target.isPlanet
+            ? $"Mass: {massReal:F2} M_earth"
+            : $"Mass: {massReal:F3} M_sun";
         if (velocityText != null) velocityText.text = $"Velocity: {speedReal:F1} km/s";
         if (escapeVelText!= null) escapeVelText.text = $"Escape vel.: {escapeVelReal:F1} km/s";
         if (mergesText != null) mergesText.text = $"Merges: {target.mergeCount}";
