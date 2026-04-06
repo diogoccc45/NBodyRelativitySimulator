@@ -39,7 +39,8 @@ public class MouseInteraction : MonoBehaviour
     [Header("Linha de Distância + HUD")]
     public DashedLine starToMouseLine; // linha tracejada do cursor à estrela mais próxima
     public TextMeshProUGUI distanceText; // texto HUD com distância em AU
-    private bool showDistanceLine = true; // toggle com T
+    public Minimap minimap; // minimap — toggle com T
+    private bool showSpatialTools = true; // controla linha + grid + minimap com T
 
     [HideInInspector]
     public GameObject lastCreatedObject; // Variável para a câmara saber onde voltar
@@ -295,9 +296,12 @@ public class MouseInteraction : MonoBehaviour
 
     void UpdateDistanceHUD()
     {
-        // Toggle da linha com T
+        // Toggle T — linha tracejada + grid + minimap
         if (Keyboard.current.tKey.wasPressedThisFrame)
-            showDistanceLine = !showDistanceLine;
+        {
+            showSpatialTools = !showSpatialTools;
+            if (minimap != null) minimap.Toggle(showSpatialTools);
+        }
 
         if (currentPrefab != planetPrefab)
         {
@@ -329,7 +333,7 @@ public class MouseInteraction : MonoBehaviour
         // Linha tracejada cursor -> estrela mais próxima (toggle com T)
         if (starToMouseLine != null)
         {
-            if (showDistanceLine)
+            if (showSpatialTools)
                 starToMouseLine.SetPoints(mousePos, nearest.transform.position);
             else
                 starToMouseLine.Hide();
