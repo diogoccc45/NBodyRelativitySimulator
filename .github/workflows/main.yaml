@@ -27,13 +27,11 @@ jobs:
       - name: Unity Builder
         uses: game-ci/unity-builder@v4
         env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
-          UNITY_LICENSING_SERVER: ${{ secrets.UNITY_LICENSING_SERVER }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: WebGL
           unityVersion: 6000.3.10f1
+          customParameters: -nographics -batchmode -no-proxy -offline -ignoreCompilerErrors
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
