@@ -17,6 +17,7 @@ public class ObjectInspector : MonoBehaviour
     public TextMeshProUGUI distanceText;
     public TextMeshProUGUI kineticText;
     public TextMeshProUGUI gravForceText;
+    public TextMeshProUGUI orbitingText; // número de planetas a orbitar (só visível em estrelas)
     StarComponent target = null;
 
     void Start()
@@ -121,6 +122,24 @@ public class ObjectInspector : MonoBehaviour
             : "Nearest star dist.: N/A";
         if (kineticText != null) kineticText.text = $"Kinetic energy: {FormatScientific(kinetic)} J";
         if (gravForceText!= null) gravForceText.text= $"Grav. force: {FormatScientific(gravForce)} N";
+
+        // Astros em órbita — só faz sentido mostrar se:
+        // 1) o objeto seguido é uma estrela (planetas não têm satélites)
+        // 2) existem planetas na cena (na Newton_Aleatorio não há nenhum, ficaria sempre "0")
+        if (orbitingText != null)
+        {
+            bool hasPlanets = stars != null && stars.Exists(s => s != null && s.isPlanet);
+            if (!target.isPlanet && hasPlanets)
+            {
+                int orbitingCount = manager.GetOrbitingCount(target);
+                orbitingText.text = $"Orbiting bodies: {orbitingCount}";
+                orbitingText.gameObject.SetActive(true);
+            }
+            else
+            {
+                orbitingText.gameObject.SetActive(false);
+            }
+        }
     }
 
     // Formata um número grande em notação científica (ex: 3.2 × 10^34)

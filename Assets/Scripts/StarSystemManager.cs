@@ -206,6 +206,21 @@ public class StarSystemManager : MonoBehaviour
         }
     }
 
+    // Conta quantos planetas têm esta estrela como a mais próxima deles
+    // Usado pelo ObjectInspector para mostrar "Orbiting bodies: X" quando se clica numa estrela
+    public int GetOrbitingCount(StarComponent star)
+    {
+        int count = 0;
+        stars.RemoveAll(s => s == null);
+        foreach (StarComponent sc in stars)
+        {
+            if (sc == null || !sc.isPlanet) continue;
+            StarComponent nearest = GetNearestStar(sc.transform.position);
+            if (nearest == star) count++;
+        }
+        return count;
+    }
+
     void ProcessMerges()
     {
         for (int i = stars.Count - 1; i >= 0; i--)
