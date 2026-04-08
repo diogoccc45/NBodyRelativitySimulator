@@ -18,12 +18,6 @@ jobs:
         with:
           lfs: true
 
-      - name: Cache Library
-        uses: actions/cache@v3
-        with:
-          path: Library
-          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-
       - name: Unity Builder
         uses: game-ci/unity-builder@v4
         env:
@@ -32,10 +26,11 @@ jobs:
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
           targetPlatform: WebGL
-          unityVersion: 6000.3.10f1 
+          unityVersion: 6000.3.10f1
+          customParameters: -username "${{ secrets.UNITY_EMAIL }}" -password "${{ secrets.UNITY_PASSWORD }}" -serial "${{ secrets.UNITY_SERIAL }}"
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: build/WebGL/WebGL
+          folder: build/WebGL/Web
           branch: gh-pages
