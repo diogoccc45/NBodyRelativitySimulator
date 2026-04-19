@@ -2959,6 +2959,10 @@ GameObject:
   - component: {fileID: 963194229}
   - component: {fileID: 963194230}
   - component: {fileID: 963194231}
+  - component: {fileID: 963194233}
+  - component: {fileID: 963194232}
+  - component: {fileID: 963194235}
+  - component: {fileID: 963194234}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -3121,6 +3125,87 @@ MonoBehaviour:
   maxDistance: 200
   scrollSpeed: 3
   inspector: {fileID: 352513256}
+--- !u!114 &963194232
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff30d4b9de77c3042931601860bb4b30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraManager
+  cameraFly: {fileID: 963194229}
+  starFollowCamera: {fileID: 963194231}
+  directorCamera: {fileID: 963194233}
+  barycentreCamera: {fileID: 963194235}
+  twoBodyCamera: {fileID: 963194234}
+--- !u!114 &963194233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afb9c1955fe7457408f7ef29df769e6f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DirectorCamera
+  manager: {fileID: 1948625230}
+  massWeight: 0.1
+  velocityWeight: 2
+  proximityWeight: 500
+  mergeWeight: 50
+  radiusMultiplier: 6
+  minDistance: 5
+  maxDistance: 150
+  smoothSpeed: 3
+  cooldownNormal: 5
+  cooldownUrgent: 1.5
+  urgentDistance: 3
+--- !u!114 &963194234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 327d263942d27f141a20a86d41a0850c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TwoBodyCamera
+  manager: {fileID: 1948625230}
+  framePadding: 2
+  minDistance: 10
+  maxDistance: 600
+  elevationAngle: 25
+  smoothSpeed: 3
+  sensitivity: 0.15
+  singleObjectDistance: 30
+--- !u!114 &963194235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 213696e42144ab94a957b9a878711fca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BarycentreCamera
+  manager: {fileID: 1948625230}
+  orbitSpeed: 10
+  elevationAngle: 35
+  zoomPadding: 1.6
+  minDistance: 20
+  maxDistance: 800
+  smoothSpeed: 2
+  sensitivity: 0.15
 --- !u!1 &995916022
 GameObject:
   m_ObjectHideFlags: 0

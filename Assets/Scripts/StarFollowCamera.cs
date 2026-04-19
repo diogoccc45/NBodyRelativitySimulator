@@ -15,41 +15,21 @@ public class StarFollowCamera : MonoBehaviour
 
     [Header("Inspetor")]
     public ObjectInspector inspector;
-
-    private bool isFollowing = false;
     private bool inspectorVisible = true;
     private Transform followTarget = null;
     private StarComponent followStar = null;
-    private CameraFly cameraFly = null;
 
-    void Awake()
+    // Chamado pelo CameraManager quando este script é desativado (saída de follow)
+    void OnDisable()
     {
-        cameraFly = GetComponent<CameraFly>();
+        if (inspector != null) inspector.Hide();
+        followTarget = null;
+        followStar = null;
     }
 
     void Update()
     {
-        // Deteta Mouse3 aqui com Raycast para entrar em modo Follow
-        if (Mouse.current.middleButton.wasPressedThisFrame)
-        {
-            if (isFollowing)
-            {
-                ExitFollow();
-            }
-            else
-            {
-                // Lança um raio do rato para ver se acerta numa estrela/planeta
-                Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-                if (Physics.Raycast(ray, out RaycastHit hit))
-                {
-                    StarComponent star = hit.collider.GetComponent<StarComponent>();
-                    if (star != null)
-                        EnterFollow(star);
-                }
-            }
-        }
-
-        if (!isFollowing) return;
+        if (followTarget == null) return;
 
         // Toggle do painel com I
         if (Keyboard.current.iKey.wasPressedThisFrame && inspector != null)
@@ -64,7 +44,7 @@ public class StarFollowCamera : MonoBehaviour
 
     void UpdateFollow()
     {
-        if (followTarget == null) { ExitFollow(); return; }
+        if (followTarget == null) return;
 
         // Scroll — aproxima ou afasta a câmara
         float scroll = Mouse.current.scroll.ReadValue().y;
@@ -97,9 +77,9 @@ public class StarFollowCamera : MonoBehaviour
         transform.LookAt(followTarget.position);
     }
 
+    // Chamado pelo CameraManager quando o Mouse3 acerta num objeto
     public void EnterFollow(StarComponent star)
     {
-        isFollowing = true;
         followTarget = star.transform;
         followStar = star;
 
@@ -108,19 +88,8 @@ public class StarFollowCamera : MonoBehaviour
         float distance = Mathf.Clamp(radius * starRadiusMultiplier, minDistance, maxDistance);
         followOffset = new Vector3(0f, distance * 0.3f, -distance);
 
-        if (cameraFly != null) cameraFly.enabled = false;
         inspectorVisible = true;
-        if (inspector!= null) inspector.Show(star);
+        if (inspector != null) inspector.Show(star);
         Debug.Log($"[StarFollowCamera] A seguir '{star.gameObject.name}' — distância: {distance:F1}");
-    }
-
-    void ExitFollow()
-    {
-        isFollowing = false;
-        followTarget = null;
-        followStar = null;
-        if (cameraFly != null) cameraFly.enabled = true;
-        if (inspector != null) inspector.Hide();
-        Debug.Log("[StarFollowCamera] Voo livre.");
     }
 }
