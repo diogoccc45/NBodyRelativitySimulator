@@ -72,12 +72,31 @@ public class MouseInteraction : MonoBehaviour
         }
         else
         {
-            massSlider.minValue = 0.1f;
-            massSlider.maxValue = 10f;
-            massSlider.value = 1.0f;
+            // Slider logarítmico: vai de 0.0 a 1.0 internamente
+            // A massa real é calculada em SliderToPlanetMass()
+            // Cobre Marte (0.33 u.i.) a Júpiter (~955 u.i.) em escala proporcional
+            massSlider.minValue = 0f;
+            massSlider.maxValue = 1f;
+            massSlider.value    = PlanetMassToSlider(3f); // começa na Terra (~1 M_earth)
         }
         // Reset ao fantasma para mudar de visual no ecrã
         ResetGhost();
+    }
+
+    // Converte posição do slider (0-1) para massa interna usando escala logarítmica.
+    // Mínimo: 0.33 u.i. (~0.11 M_earth, Marte)   Máximo: 51 u.i. (~17 M_earth, Neptuno/Urano)
+    // Gigantes gasosos excluídos — Júpiter perturbaria gravemente as estrelas nesta escala
+    const float planetLogMin = 0.33f;
+    const float planetLogMax = 51f;
+    float SliderToPlanetMass(float sliderVal)
+    {
+        return planetLogMin * Mathf.Pow(planetLogMax / planetLogMin, sliderVal);
+    }
+
+    // Inverso: dada uma massa interna, devolve a posição do slider correspondente
+    float PlanetMassToSlider(float mass)
+    {
+        return Mathf.Log(mass / planetLogMin) / Mathf.Log(planetLogMax / planetLogMin);
     }
 
     void ResetGhost()
@@ -114,7 +133,9 @@ public class MouseInteraction : MonoBehaviour
             }
             else
             {
-                float massReal = massSlider.value * massPlanetToEarth;
+                // Converte o slider logarítmico para massa real em M_earth
+                float massInternal = SliderToPlanetMass(massSlider.value);
+                float massReal = massInternal * massPlanetToEarth;
                 massText.text = $"Mass: {massReal:F2} M_earth";
             }
         }
@@ -180,20 +201,23 @@ public class MouseInteraction : MonoBehaviour
                 if (Keyboard.current.oKey.isPressed && currentPrefab == planetPrefab)
                 {
                     Vector3 orbitalVel = CalcOrbitalVelocity(dragStartPos);
-                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, orbitalVel, massSlider.value);
+                    float spawnMass1 = (currentPrefab == planetPrefab) ? SliderToPlanetMass(massSlider.value) : massSlider.value;
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, orbitalVel, spawnMass1);
                     isDragging = false;
                     if (dragLine != null) dragLine.enabled = false;
                 }
                 // SHIFT — cria parado
                 else if (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed)
                 {
-                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, massSlider.value);
+                    float spawnMass2  = (currentPrefab == planetPrefab) ? SliderToPlanetMass(massSlider.value) : massSlider.value;
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, Vector3.zero, spawnMass2);
                 }
                 // Estilingue normal
                 else if (dragDistance > dragThreshold)
                 {
                     Vector3 launchVelocity = (dragStartPos - dragEndPos) * launchForceMultiplier;
-                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, massSlider.value);
+                    float spawnMass3  = (currentPrefab == planetPrefab) ? SliderToPlanetMass(massSlider.value) : massSlider.value;
+                    lastCreatedObject = manager.CreateStarCustom(currentPrefab, dragStartPos, launchVelocity, spawnMass3);
                 }
             }
         }
@@ -218,7 +242,10 @@ public class MouseInteraction : MonoBehaviour
     {
         if (ghostInstance == null || ghostComponent == null || massSlider == null) return;
 
-        ghostComponent.mass = massSlider.value;
+        // Para planetas usa a massa interna real (escala logarítmica), não o valor direto do slider
+        ghostComponent.mass = (currentPrefab == planetPrefab)
+            ? SliderToPlanetMass(massSlider.value)
+            : massSlider.value;
         ghostComponent.UpdateAppearance();
 
         Renderer rend = ghostInstance.GetComponent<Renderer>();
@@ -241,10 +268,14 @@ public class MouseInteraction : MonoBehaviour
             }
             else
             {
-                if (t < 0.5f)
-                    targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t * 2);
+                // Ghost do planeta usa a mesma sequência de cores por composição química que o StarComponent — calculada a partir da massa interna real (não do slider 0-1)
+                float massInternal = SliderToPlanetMass(massSlider.value);
+                if (massInternal < 1.5f)
+                    targetColor = Color.Lerp(new Color(0.45f, 0.35f, 0.30f), new Color(0.60f, 0.50f, 0.42f), Mathf.InverseLerp(0.33f, 1.5f, massInternal));
+                else if (massInternal < 6.0f)
+                    targetColor = Color.Lerp(new Color(0.35f, 0.50f, 0.40f), new Color(0.20f, 0.50f, 0.65f), Mathf.InverseLerp(1.5f, 6.0f, massInternal));
                 else
-                    targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t - 0.5f) * 2);
+                    targetColor = Color.Lerp(new Color(0.20f, 0.50f, 0.65f), new Color(0.15f, 0.40f, 0.75f), Mathf.InverseLerp(6.0f, 51f, massInternal));
             }
 
             targetColor.a = 0.4f;

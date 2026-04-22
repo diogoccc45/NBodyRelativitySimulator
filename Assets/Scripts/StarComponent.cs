@@ -29,7 +29,7 @@ public class StarComponent : MonoBehaviour
         // 0.3 (157) -> orange (K-type)
         // 0.5 (255) -> yellow (G-type, Sun-like)
         // 0.7 (360) -> white (F/A-type)
-        // 1.0 (500) -> blue-white (B/O-type) ------ COPIADO DE PAPER
+        // 1.0 (500) -> blue-white (B/O-type) - COPIADO DE PAPER
         Color targetColor;
         if (t < 0.3f)
             targetColor = Color.Lerp(new Color(1.0f, 0.05f, 0.05f), new Color(1.0f, 0.5f, 0.2f), t / 0.3f);
@@ -42,17 +42,38 @@ public class StarComponent : MonoBehaviour
 
         if (isPlanet)
         {
-            float t_planet = Mathf.InverseLerp(0.1f, 10f, mass); 
-            if (t_planet < 0.5f)
-                targetColor = Color.Lerp(new Color(0.7f, 0.4f, 0.3f), new Color(0.9f, 0.7f, 0.5f), t_planet * 2);
+            // Sequência de composição química baseada na massa interna (unidades internas):
+            // 0.33 – 1.5 → Rochosos pequenos (Marte, Mercúrio) — cinzento-acastanhado
+            // 1.5 – 6.0 → Rochosos grandes + super-Terras (Terra, Vénus) — azul-esverdeado
+            // 6.0 – 51 → Gigantes de gelo (Urano ~51, Neptuno ~51) — azul-ciano frio
+            // Gigantes gasosos excluídos — massa de Júpiter (~955 u.i.) perturbaria as estrelas
+            if (mass < 1.5f)
+            {
+                float t_p = Mathf.InverseLerp(0.33f, 1.5f, mass);
+                targetColor = Color.Lerp(new Color(0.45f, 0.35f, 0.30f), // cinzento-acastanhado escuro (Marte)
+                                         new Color(0.60f, 0.50f, 0.42f), // acastanhado mais claro (Mercúrio)
+                                         t_p);
+            }
+            else if (mass < 6.0f)
+            {
+                float t_p = Mathf.InverseLerp(1.5f, 6.0f, mass);
+                targetColor = Color.Lerp(new Color(0.35f, 0.50f, 0.40f), // azul-esverdeado acinzentado (Terra)
+                                         new Color(0.20f, 0.50f, 0.65f), // azul-esverdeado saturado (super-Terra)
+                                         t_p);
+            }
             else
-                targetColor = Color.Lerp(new Color(0.9f, 0.7f, 0.5f), new Color(0.2f, 0.5f, 1.0f), (t_planet - 0.5f) * 2);
+            {
+                float t_p = Mathf.InverseLerp(6.0f, 51f, mass);
+                targetColor = Color.Lerp(new Color(0.20f, 0.50f, 0.65f), // azul-esverdeado frio
+                                         new Color(0.15f, 0.40f, 0.75f), // azul profundo (Neptuno/Urano)
+                                         t_p);
+            }
         }
 
         float scale = 0.5f + (mass / 100f);
         
-        // Se for planeta, garantimos que ele é sempre mais pequeno que a estrela mínima
-        if (isPlanet) scale = 0.3f; 
+        // Se for planeta, a escala cresce ligeiramente com a massa mas mantém-se sempre abaixo da menor estrela — Júpiter (~955 u.i.) fica a 0.6, Terra a 0.3
+        if (isPlanet) scale = Mathf.Lerp(0.20f, 0.50f, Mathf.InverseLerp(0.33f, 51f, mass)); 
 
         transform.localScale = Vector3.one * scale;
 

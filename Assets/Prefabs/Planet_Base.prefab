@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 3712440423243004887}
   - component: {fileID: -7654352372582719149}
   - component: {fileID: 2077927050571358698}
+  - component: {fileID: -965286777388383105}
   m_Layer: 0
   m_Name: Planet_Base
   m_TagString: Untagged
@@ -248,3 +249,24 @@ MonoBehaviour:
   mass: 1
   velocity: {x: 0, y: 0, z: 0}
   isPlanet: 1
+  mergeCount: 0
+--- !u!114 &-965286777388383105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1735853151137683551}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 857fad15e032219409b39fe4cfd8e442, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlanetAppearance
+  textureResolution: 256
+  minRotationSpeed: 2
+  maxRotationSpeed: 15
+  cloudSpeedMultiplier: 1.4
+  cloudCoverage: 0.45
+  cloudOpacity: 0.85
+  atmosphereScale: 1.015
+  atmosphereOpacity: 0.35
