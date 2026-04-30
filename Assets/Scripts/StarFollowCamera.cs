@@ -24,7 +24,7 @@ public class StarFollowCamera : MonoBehaviour
     {
         if (inspector != null) inspector.Hide();
         followTarget = null;
-        followStar = null;
+        followStar   = null;
     }
 
     void Update()
@@ -76,17 +76,22 @@ public class StarFollowCamera : MonoBehaviour
                                           followSmoothSpeed * Time.deltaTime);
         transform.LookAt(followTarget.position);
     }
+    // Permite que outros scripts verifiquem se estão a seguir um objeto específico
+    public bool IsFollowing(StarComponent star)
+    {
+        return followStar == star;
+    }
 
     // Chamado pelo CameraManager quando o Mouse3 acerta num objeto
     public void EnterFollow(StarComponent star)
     {
         followTarget = star.transform;
-        followStar = star;
+        followStar   = star;
 
         // Calcula offset automático com base no raio da estrela
-        float radius = star.transform.localScale.x * 0.5f;
+        float radius   = star.transform.localScale.x * 0.5f;
         float distance = Mathf.Clamp(radius * starRadiusMultiplier, minDistance, maxDistance);
-        followOffset = new Vector3(0f, distance * 0.3f, -distance);
+        followOffset   = new Vector3(0f, distance * 0.3f, -distance);
 
         inspectorVisible = true;
         if (inspector != null) inspector.Show(star);

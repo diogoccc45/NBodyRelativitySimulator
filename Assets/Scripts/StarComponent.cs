@@ -72,8 +72,10 @@ public class StarComponent : MonoBehaviour
 
         float scale = 0.5f + (mass / 100f);
         
-        // Se for planeta, a escala cresce ligeiramente com a massa mas mantém-se sempre abaixo da menor estrela — Júpiter (~955 u.i.) fica a 0.6, Terra a 0.3
-        if (isPlanet) scale = Mathf.Lerp(0.20f, 0.50f, Mathf.InverseLerp(0.33f, 51f, mass)); 
+        // Planetas: escala proporcional à massa real
+        // Terra (~3 u.i.) → 1.2,  Neptuno (~51 u.i.) → 3.0
+        // Mantém-se sempre abaixo da menor estrela (escala ~0.6)
+        if (isPlanet) scale = Mathf.Lerp(1.0f, 3.0f, Mathf.InverseLerp(0.33f, 51f, mass)); 
 
         transform.localScale = Vector3.one * scale;
 
@@ -85,8 +87,19 @@ public class StarComponent : MonoBehaviour
 
             if (isPlanet)
             {
-                starRenderer.material.DisableKeyword("_EMISSION");
-                starRenderer.material.SetColor("_EmissionColor", Color.black);
+                // Só desativa a emissão se o PlanetAppearance não gerou uma EmissionMap
+                // Se tiver EmissionMap (luzes noturnas), mantém a emissão ativa
+                PlanetAppearance pa = GetComponent<PlanetAppearance>();
+                bool hasEmissionMap = pa != null
+                    && starRenderer.material.GetTexture("_EmissionMap") != null;
+
+                if (hasEmissionMap)
+                    starRenderer.material.EnableKeyword("_EMISSION");
+                else
+                {
+                    starRenderer.material.DisableKeyword("_EMISSION");
+                    starRenderer.material.SetColor("_EmissionColor", Color.black);
+                }
             }
             else
             {

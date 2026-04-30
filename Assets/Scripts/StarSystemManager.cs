@@ -20,12 +20,28 @@ public class StarSystemManager : MonoBehaviour
     private List<StarComponent> stars = new List<StarComponent>();
     private bool isPaused = false;
     public void SetPaused(bool paused) => isPaused = paused;
+
+    // Referência ao PlanetAbsorption — gere a sequência visual de absorção
+    private PlanetAbsorption absorptionHandler;
+
+    // Referência ao PlanetCollision — gere as colisões planeta-planeta
+    private PlanetCollision collisionHandler;
+
+    [Header("Prefabs")]
+    [Tooltip("Prefab do planeta (Planet_Base) — usado para criar fragmentos em colisões")]
+    public GameObject planetPrefab;
+
     // Contadores para nomes automáticos
     private int starCounter = 0;
     private int planetCounter = 0;
 
     void Start()
     {
+        // Garante que os handlers de colisão existem no mesmo GameObject
+        absorptionHandler = GetComponent<PlanetAbsorption>() ?? gameObject.AddComponent<PlanetAbsorption>();
+        collisionHandler = GetComponent<PlanetCollision>() ?? gameObject.AddComponent<PlanetCollision>();
+        if (collisionHandler != null) collisionHandler.manager = this;
+
         if (starCount > 0)
         {
             SpawnInitialGalaxy(starCount, spawnRadius);
@@ -145,10 +161,24 @@ public class StarSystemManager : MonoBehaviour
         // Loop de gravidade N-Bodies
         for (int i = 0; i < stars.Count; i++)
         {
+            if (stars[i] == null) continue;
+
+            // Fragmentos usam física simplificada — só interagem com a estrela mais próxima
+            // Evita o custo O(n^2) do N-body completo para detritos de curta vida
+            if (stars[i].gameObject.CompareTag("Fragment"))
+            {
+                // Fragmentos agora não processam gravidade para aliviar o PC
+                continue;
+            }
+
             Vector3 acceleration = Vector3.zero;
             for (int j = 0; j < stars.Count; j++)
             {
                 if (i == j) continue;
+                if (stars[j] == null) continue;
+
+                // Fragmentos não exercem força gravitacional sobre outros objetos
+                if (stars[j].gameObject.CompareTag("Fragment")) continue;
 
                 Vector3 dir = stars[j].transform.position - stars[i].transform.position;
                 float distSq = Mathf.Max(dir.sqrMagnitude, 25f); // Evita erros de divisão por zero
@@ -171,8 +201,83 @@ public class StarSystemManager : MonoBehaviour
         if (enableMerging)
             ProcessMerges();
 
+        ProcessPlanetPlanetCollisions();
         // Colisão planeta-estrela — planeta é destruído ao entrar no raio da estrela
         ProcessPlanetCollisions();
+    }
+
+    [Header("Colisão Planeta-Planeta")]
+    [Tooltip("Distância mínima entre dois planetas para despoletar colisão (em game units)")]
+    public float planetCollisionDistance = 1.5f;
+
+    // Deteta colisões entre planetas e delega ao PlanetCollision
+    void ProcessPlanetPlanetCollisions()
+    {
+        for (int i = stars.Count - 1; i >= 0; i--)
+        {
+            if (stars[i] == null || !stars[i].isPlanet) continue;
+
+            for (int j = i - 1; j >= 0; j--)
+            {
+                if (stars[j] == null || !stars[j].isPlanet) continue;
+
+                float dist = Vector3.Distance(stars[i].transform.position,
+                                              stars[j].transform.position);
+
+                if (dist > planetCollisionDistance) continue;
+
+                StarComponent a = stars[i];
+                StarComponent b = stars[j];
+
+                PlanetCollision pc = GetComponent<PlanetCollision>();
+                if (pc != null)
+                {
+                    pc.manager = this;
+
+                    bool isBounce = pc.mode == PlanetCollision.CollisionMode.Bounce;
+
+                    if (!isBounce)
+                    {
+                        if (pc.mode == PlanetCollision.CollisionMode.FragmentAll)
+                        {
+                            // Fragment All — remove ambos da lista
+                            stars.RemoveAt(i);
+                            int newJ = j < i ? j : j - 1;
+                            if (newJ >= 0 && newJ < stars.Count) stars.RemoveAt(newJ);
+                        }
+                        else if (pc.mode == PlanetCollision.CollisionMode.FragmentByMass)
+                        {
+                            float largerMass  = Mathf.Max(a.mass, b.mass);
+                            float smallerMass = Mathf.Min(a.mass, b.mass);
+                            bool  willFrag = (largerMass / Mathf.Max(smallerMass, 0.01f)) >= pc.massRatioThreshold;
+
+                            if (willFrag)
+                            {
+                                // Só remove o menor — o maior sobrevive na simulação com textura
+                                StarComponent smaller = a.mass < b.mass ? a : b;
+                                stars.Remove(smaller);
+                            }
+                            else
+                            {
+                                // Massas parecidas → vai para Bounce interno, não remove nada
+                            }
+                        }
+                    }
+
+                    pc.ProcessCollision(a, b);
+                }
+                else
+                {
+                    // Fallback — destrói ambos com animação se PlanetCollision não existir
+                    stars.RemoveAt(i);
+                    int newJ = j < i ? j : j - 1;
+                    if (newJ >= 0 && newJ < stars.Count) stars.RemoveAt(newJ);
+                    a.StartCoroutine(a.DestroyAnimation());
+                    b.StartCoroutine(b.DestroyAnimation());
+                }
+                return; // OTIMIZAÇÃO: Apenas uma colisão processada por frame para evitar lag
+            }
+        }
     }
 
     void ProcessPlanetCollisions()
@@ -185,25 +290,59 @@ public class StarSystemManager : MonoBehaviour
             {
                 if (stars[j] == null || stars[j].isPlanet) continue;
 
-                // Raio da estrela baseado na sua escala atual
+                // Raio de captura gravitacional — inicia a espiral antes do contacto visual
                 float starRadius = stars[j].transform.localScale.x * 0.5f;
+                float captureRadius = starRadius * 1.5f;
                 float dist = Vector3.Distance(stars[i].transform.position,
-                                                    stars[j].transform.position);
+                                              stars[j].transform.position);
 
-                if (dist > starRadius) continue;
+                if (dist > captureRadius) continue;
 
-                // Estrela absorve a massa do planeta e pulsa
                 stars[j].mass += stars[i].mass * 0.1f; // absorve 10% da massa do planeta
                 stars[j].UpdateAppearance();
-                stars[j].StartCoroutine(stars[j].AbsorptionPulse());
 
-                // Planeta desaparece com animação
                 StarComponent planet = stars[i];
+                StarComponent star = stars[j];
                 stars.RemoveAt(i);
-                planet.StartCoroutine(planet.DestroyAnimation());
+
+                if (absorptionHandler != null)
+                    absorptionHandler.StartAbsorption(planet, star);
+                else
+                    planet.StartCoroutine(planet.DestroyAnimation()); // fallback
+
                 break;
             }
         }
+    }
+
+    // Devolve o prefab do planeta — usado pelo PlanetCollision para criar fragmentos
+    public GameObject GetPlanetPrefab() => planetPrefab;
+
+    // Adiciona um objeto à simulação N-body completa
+    public void AddToSimulation(StarComponent sc)
+    {
+        if (sc != null && !stars.Contains(sc))
+            stars.Add(sc);
+    }
+
+    // Adiciona um fragmento com física simplificada — só interage com a estrela mais próxima
+    // Muito mais eficiente que o N-body completo para detritos de curta vida
+    public void AddFragmentToSimulation(StarComponent sc)
+    {
+        if (sc == null) return;
+
+        // Marca o fragmento para física simplificada via tag
+        sc.gameObject.tag = "Fragment";
+
+        // Adiciona à lista normal — o FixedUpdate trata-o de forma diferente se for Fragment
+        if (!stars.Contains(sc))
+            stars.Add(sc);
+    }
+
+    // Remove um objeto da simulação N-body
+    public void RemoveFromSimulation(StarComponent sc)
+    {
+        stars.Remove(sc);
     }
 
     // Conta quantos planetas têm esta estrela como a mais próxima deles

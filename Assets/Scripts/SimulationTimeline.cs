@@ -173,10 +173,15 @@ public class SimulationTimeline : MonoBehaviour
                 // Limpa o TrailRenderer durante o replay para evitar rastos invertidos
                 TrailRenderer trail = sc.GetComponent<TrailRenderer>();
                 if (trail != null) trail.Clear();
+
+                // Notifica o PlanetAppearance para não interferir durante o replay
+                // As Coroutines de textura ficam suspensas enquanto o replay está ativo
+                PlanetAppearance pa = sc.GetComponent<PlanetAppearance>();
+                if (pa != null) pa.SetReplayMode(true);
             }
         }
     }
-    // Restaura os TrailRenderers ao voltar ao live
+    // Restaura os TrailRenderers e o PlanetAppearance ao voltar ao live
     void RestoreTrails()
     {
         List<StarComponent> stars = manager.GetStars();
@@ -184,8 +189,13 @@ public class SimulationTimeline : MonoBehaviour
         foreach (StarComponent sc in stars)
         {
             if (sc == null) continue;
+
             TrailRenderer trail = sc.GetComponent<TrailRenderer>();
             if (trail != null) trail.Clear();
+
+            // Sai do modo replay — PlanetAppearance retoma o comportamento normal
+            PlanetAppearance pa = sc.GetComponent<PlanetAppearance>();
+            if (pa != null) pa.SetReplayMode(false);
         }
     }
 
@@ -208,7 +218,7 @@ public class SimulationTimeline : MonoBehaviour
         // Limpa rastos ao pausar/resumir para evitar artefactos visuais
         RestoreTrails();
 
-        Debug.Log($"[Timeline] {(paused ? "Pausado" : "A correr")}");
+
     }
 
     // Chamado pelo slider de UI

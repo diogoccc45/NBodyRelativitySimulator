@@ -45,7 +45,8 @@ public class PlanetAppearance : MonoBehaviour
     private Color oceanColor;
     private Color atmosphereColor;
     private Color nightEmissionColor;
-    private bool  isIceGiant; // true para gigantes de gelo (massa > 6 u.i.)
+    private bool  isIceGiant;  // true para gigantes de gelo (massa > 6 u.i.)
+    private bool  isReplayMode = false; // true durante o replay — suspende as Coroutines de textura
 
     void Start()
     {
@@ -63,9 +64,46 @@ public class PlanetAppearance : MonoBehaviour
         rotationSpeed = UnityEngine.Random.Range(minRotationSpeed, maxRotationSpeed);
 
         DeriveColors();
-        BuildSurfaceMaterial();
-        BuildCloudSphere();
-        BuildAtmosphereSphere();
+        BuildAtmosphereSphere(); // atmosfera instantânea — não gera texturas
+        BuildCloudSphere();      // nuvens com placeholder enquanto a textura carrega
+        StartCoroutine(GenerateTexturesAsync()); // texturas em background — sem freeze
+    }
+
+    // Controla o modo replay — suspende a geração de texturas para não interferir
+    // com os materiais durante o rewind da SimulationTimeline
+    public void SetReplayMode(bool replay)
+    {
+        isReplayMode = replay;
+
+        // Durante o replay, esconde os filhos (nuvens e atmosfera) para evitar artefactos
+        if (cloudSphere     != null) cloudSphere.SetActive(!replay);
+        if (atmosphereSphere!= null) atmosphereSphere.SetActive(!replay);
+    }
+
+    // Gera as texturas distribuídas por vários frames para não bloquear a thread principal
+    // O planeta aparece imediatamente com cor sólida e as texturas fazem fade-in quando ficam prontas
+    System.Collections.IEnumerator GenerateTexturesAsync()
+    {
+        // Placeholder — material com cor sólida enquanto as texturas carregam
+        Material placeholderMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        placeholderMat.color = surfaceColor;
+        placeholderMat.SetColor("_BaseColor", surfaceColor);
+        placeholderMat.SetFloat("_Smoothness", isIceGiant ? 0.6f : 0.2f);
+        surfaceRenderer.material = placeholderMat;
+        surfaceMat = placeholderMat;
+
+        yield return null; // espera 1 frame antes de começar
+
+        // Gera superfície de forma assíncrona
+        yield return StartCoroutine(GenerateSurfaceAsync());
+        yield return null;
+
+        // Gera emissão de forma assíncrona
+        yield return StartCoroutine(GenerateEmissionAsync());
+        yield return null;
+
+        // Gera nuvens de forma assíncrona
+        yield return StartCoroutine(GenerateCloudsAsync());
     }
 
     void Update()
@@ -118,30 +156,166 @@ public class PlanetAppearance : MonoBehaviour
         }
     }
 
-    // Cria o material da superfície com textura procedural
-    void BuildSurfaceMaterial()
+    // Coroutine: gera a textura de superfície distribuída por vários frames
+    // Cada linha de pixels é calculada num frame separado para evitar freeze
+    System.Collections.IEnumerator GenerateSurfaceAsync()
     {
-        Texture2D surfaceTex  = GenerateSurfaceTexture();
-        Texture2D emissionTex = GenerateEmissionTexture();
+        int res = textureResolution;
+        Texture2D tex    = new Texture2D(res, res, TextureFormat.RGBA32, true);
+        Color[]   pixels = new Color[res * res];
 
-        surfaceMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        surfaceMat.mainTexture = surfaceTex;
+        float oceanThreshold = isIceGiant
+            ? UnityEngine.Random.Range(0.70f, 0.90f)
+            : Mathf.Lerp(0.35f, 0.55f, Mathf.InverseLerp(0.33f, 6f, starComponent.mass));
 
-        // Emissão noturna — ativa o keyword para o URP Lit aceitar emissão
-        surfaceMat.EnableKeyword("_EMISSION");
-        surfaceMat.SetTexture("_EmissionMap", emissionTex);
-        surfaceMat.SetColor("_EmissionColor", nightEmissionColor);
+        // Processa 8 linhas por frame — bom equilíbrio entre velocidade e fluidez
+        int linesPerFrame = 8;
+        for (int y = 0; y < res; y++)
+        {
+            // Aborta a geração se entrou em modo replay
+            if (isReplayMode) yield break;
+            for (int x = 0; x < res; x++)
+            {
+                float u = (float)x / res;
+                float v = (float)y / res;
+                float3 spherePos = UVToSphere(u, v);
 
-        // Suavidade e metalicidade (planetas não são metálicos)
-        surfaceMat.SetFloat("_Smoothness", isIceGiant ? 0.6f : 0.2f);
-        surfaceMat.SetFloat("_Metallic",   0f);
+                float continent = noise.snoise(spherePos * 1.8f + seed) * 0.5f + 0.5f;
+                float detail    = noise.snoise(spherePos * 5.5f + seed + 100f) * 0.5f + 0.5f;
+                float combined  = continent * 0.70f + detail * 0.30f;
 
-        // Parâmetro de rotação — lido no Update via SetFloat
-        // O shader URP/Lit não tem rotação UV nativa, por isso usamos um Normal Map offset como proxy.
-        // A rotação real é feita via scroll do mainTextureOffset
-        surfaceMat.SetFloat("_RotationAngle", 0f);
+                if (isIceGiant)
+                {
+                    float bands = noise.snoise(new float3(spherePos.x * 0.5f, spherePos.y * 3.0f, spherePos.z * 0.5f) + seed) * 0.5f + 0.5f;
+                    combined    = combined * 0.4f + bands * 0.6f;
+                }
 
-        surfaceRenderer.material = surfaceMat;
+                Color pixelColor;
+                if (combined > oceanThreshold)
+                {
+                    float terrainVar = detail * 0.25f;
+                    pixelColor = Color.Lerp(surfaceColor * (1f - terrainVar),
+                                            surfaceColor * (1f + terrainVar * 0.5f), detail);
+                    if (!isIceGiant && starComponent.mass > 1.5f)
+                    {
+                        float poleBlend = Mathf.Pow(Mathf.Abs(v * 2f - 1f), 4f);
+                        pixelColor = Color.Lerp(pixelColor, Color.white * 0.9f, poleBlend * 0.8f);
+                    }
+                }
+                else
+                {
+                    float depth = 1f - (combined / oceanThreshold);
+                    pixelColor  = Color.Lerp(oceanColor * 1.1f, oceanColor * 0.6f, depth);
+                }
+                pixels[y * res + x] = pixelColor;
+            }
+
+            // Yield a cada linesPerFrame linhas
+            if (y % linesPerFrame == 0) yield return null;
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+
+        // Aplica a textura ao material já existente
+        if (surfaceMat != null)
+        {
+            surfaceMat.mainTexture = tex;
+            surfaceMat.SetFloat("_Smoothness", isIceGiant ? 0.6f : 0.2f);
+            surfaceMat.SetFloat("_Metallic", 0f);
+        }
+    }
+
+    // Coroutine: gera a textura de emissão noturna distribuída por vários frames
+    System.Collections.IEnumerator GenerateEmissionAsync()
+    {
+        int res = textureResolution;
+        Texture2D tex    = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        Color[]   pixels = new Color[res * res];
+        Color     black  = Color.black;
+
+        float oceanThreshold = Mathf.Lerp(0.35f, 0.55f, Mathf.InverseLerp(1.5f, 6f, starComponent.mass));
+        int linesPerFrame = 8;
+
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float u       = (float)x / res;
+                float v       = (float)y / res;
+                float3 sphPos = UVToSphere(u, v);
+
+                if (isIceGiant)
+                {
+                    float glow = noise.snoise(sphPos * 2.0f + seed + 500f) * 0.5f + 0.5f;
+                    glow       = Mathf.Pow(glow, 3f) * 0.4f;
+                    pixels[y * res + x] = nightEmissionColor * glow;
+                }
+                else if (starComponent.mass >= 1.5f)
+                {
+                    float continent = noise.snoise(sphPos * 1.8f + seed) * 0.5f + 0.5f;
+                    float detail    = noise.snoise(sphPos * 5.5f + seed + 100f) * 0.5f + 0.5f;
+                    float combined  = continent * 0.70f + detail * 0.30f;
+                    if (combined > oceanThreshold)
+                    {
+                        float cityNoise = noise.snoise(sphPos * 12f + seed + 200f) * 0.5f + 0.5f;
+                        cityNoise       = Mathf.Pow(cityNoise, 6f);
+                        pixels[y * res + x] = nightEmissionColor * cityNoise;
+                    }
+                    else pixels[y * res + x] = black;
+                }
+                else pixels[y * res + x] = black;
+            }
+            if (y % linesPerFrame == 0) yield return null;
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply();
+
+        if (surfaceMat != null)
+        {
+            surfaceMat.EnableKeyword("_EMISSION");
+            surfaceMat.SetTexture("_EmissionMap", tex);
+            surfaceMat.SetColor("_EmissionColor", nightEmissionColor);
+        }
+    }
+
+    // Coroutine: gera a textura de nuvens distribuída por vários frames
+    System.Collections.IEnumerator GenerateCloudsAsync()
+    {
+        int res = textureResolution;
+        Texture2D tex    = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        Color[]   pixels = new Color[res * res];
+
+        Color cloudColor = isIceGiant
+            ? new Color(0.70f, 0.85f, 1.00f)
+            : new Color(0.95f, 0.95f, 1.00f);
+
+        int linesPerFrame = 8;
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float u       = (float)x / res;
+                float v       = (float)y / res;
+                float3 sphPos = UVToSphere(u, v);
+
+                float cloud1  = noise.snoise(sphPos * 2.2f + seed + 300f) * 0.5f + 0.5f;
+                float cloud2  = noise.snoise(sphPos * 4.5f + seed + 400f) * 0.5f + 0.5f;
+                float cloud   = cloud1 * 0.65f + cloud2 * 0.35f;
+                float alpha   = Mathf.Clamp01((cloud - (1f - cloudCoverage)) / 0.3f) * cloudOpacity;
+
+                pixels[y * res + x] = new Color(cloudColor.r, cloudColor.g, cloudColor.b, alpha);
+            }
+            if (y % linesPerFrame == 0) yield return null;
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+
+        if (cloudMat != null) cloudMat.mainTexture = tex;
     }
 
     // Cria a esfera de nuvens como filho do planeta
@@ -159,10 +333,8 @@ public class PlanetAppearance : MonoBehaviour
         int minimapLayer = LayerMask.NameToLayer("Minimap");
         if (minimapLayer >= 0) cloudSphere.layer = minimapLayer;
 
-        Texture2D cloudTex = GenerateCloudTexture();
-
+        // Textura gerada assincronamente em GenerateCloudsAsync — placeholder transparente por agora
         cloudMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        cloudMat.mainTexture    = cloudTex;
         cloudMat.SetFloat("_Smoothness", 0.1f);
         cloudMat.SetFloat("_Metallic",   0f);
 
@@ -232,170 +404,6 @@ public class PlanetAppearance : MonoBehaviour
     }
 
     // ─── Geração de Texturas ─────────────────────────────────────────────────
-
-    // Textura de superfície — continentes, oceanos e detalhe de terreno
-    Texture2D GenerateSurfaceTexture()
-    {
-        Texture2D tex    = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, true);
-        Color[]   pixels = new Color[textureResolution * textureResolution];
-
-        // Threshold terra/oceano adaptado pela massa:
-        // planetas rochosos têm mais terra (threshold baixo), gigantes de gelo têm menos (threshold alto)
-        float oceanThreshold = isIceGiant
-            ? UnityEngine.Random.Range(0.70f, 0.90f)  // maioritariamente "oceano" (atmosfera densa)
-            : Mathf.Lerp(0.35f, 0.55f, Mathf.InverseLerp(0.33f, 6f, starComponent.mass));
-
-        for (int y = 0; y < textureResolution; y++)
-        {
-            for (int x = 0; x < textureResolution; x++)
-            {
-                // Converte UV para coordenadas esféricas 3D para evitar distorção nos polos
-                float u = (float)x / textureResolution;
-                float v = (float)y / textureResolution;
-                float3 spherePos = UVToSphere(u, v);
-
-                // Camada 1: forma dos continentes (baixa frequência)
-                float continent = noise.snoise(spherePos * 1.8f + seed) * 0.5f + 0.5f;
-
-                // Camada 2: detalhe de terreno (alta frequência)
-                float detail    = noise.snoise(spherePos * 5.5f + seed + 100f) * 0.5f + 0.5f;
-
-                // Combina as duas camadas — os continentes dominam, o detalhe adiciona textura
-                float combined  = continent * 0.70f + detail * 0.30f;
-
-                // Para gigantes de gelo, adiciona bandas horizontais (atmosfera em camadas)
-                if (isIceGiant)
-                {
-                    float bands = noise.snoise(new float3(spherePos.x * 0.5f, spherePos.y * 3.0f, spherePos.z * 0.5f) + seed) * 0.5f + 0.5f;
-                    combined    = combined * 0.4f + bands * 0.6f;
-                }
-
-                // Decide se é terra ou oceano
-                Color pixelColor;
-                if (combined > oceanThreshold)
-                {
-                    // Terra — varia a cor com o detalhe para dar textura de relevo
-                    float terrainVar = detail * 0.25f;
-                    pixelColor = Color.Lerp(surfaceColor * (1f - terrainVar),
-                                            surfaceColor * (1f + terrainVar * 0.5f),
-                                            detail);
-
-                    // Polos mais claros (neve/gelo) — só em planetas rochosos grandes
-                    if (!isIceGiant && starComponent.mass > 1.5f)
-                    {
-                        float poleBlend = Mathf.Pow(Mathf.Abs(v * 2f - 1f), 4f); // mais forte nos extremos do UV
-                        pixelColor = Color.Lerp(pixelColor, Color.white * 0.9f, poleBlend * 0.8f);
-                    }
-                }
-                else
-                {
-                    // Oceano — profundidade varia com o valor do ruído
-                    float depth    = 1f - (combined / oceanThreshold); // 0 = superfície, 1 = fundo
-                    pixelColor     = Color.Lerp(oceanColor * 1.1f, oceanColor * 0.6f, depth);
-                }
-
-                pixels[y * textureResolution + x] = pixelColor;
-            }
-        }
-
-        tex.SetPixels(pixels);
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
-    // Textura de emissão noturna — luzes de cidades (rochosos) ou brilho atmosférico (gigantes de gelo)
-    Texture2D GenerateEmissionTexture()
-    {
-        Texture2D tex    = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, false);
-        Color[]   pixels = new Color[textureResolution * textureResolution];
-        Color     black  = Color.black;
-
-        for (int y = 0; y < textureResolution; y++)
-        {
-            for (int x = 0; x < textureResolution; x++)
-            {
-                float u        = (float)x / textureResolution;
-                float v        = (float)y / textureResolution;
-                float3 sphPos  = UVToSphere(u, v);
-
-                if (isIceGiant)
-                {
-                    // Gigante de gelo: brilho atmosférico difuso em bandas
-                    float glow = noise.snoise(sphPos * 2.0f + seed + 500f) * 0.5f + 0.5f;
-                    glow       = Mathf.Pow(glow, 3f) * 0.4f;
-                    pixels[y * textureResolution + x] = nightEmissionColor * glow;
-                }
-                else if (starComponent.mass >= 1.5f)
-                {
-                    // Rochoso grande: luzes de cidades nos continentes
-                    float continent = noise.snoise(sphPos * 1.8f + seed) * 0.5f + 0.5f;
-                    float detail    = noise.snoise(sphPos * 5.5f + seed + 100f) * 0.5f + 0.5f;
-                    float combined  = continent * 0.70f + detail * 0.30f;
-
-                    float oceanThreshold = Mathf.Lerp(0.35f, 0.55f, Mathf.InverseLerp(1.5f, 6f, starComponent.mass));
-
-                    if (combined > oceanThreshold)
-                    {
-                        // Luzes em clusters — ruído de alta frequência nos continentes
-                        float cityNoise = noise.snoise(sphPos * 12f + seed + 200f) * 0.5f + 0.5f;
-                        cityNoise       = Mathf.Pow(cityNoise, 6f); // só os picos mais altos acendem
-                        pixels[y * textureResolution + x] = nightEmissionColor * cityNoise;
-                    }
-                    else
-                    {
-                        pixels[y * textureResolution + x] = black;
-                    }
-                }
-                else
-                {
-                    // Rochoso pequeno: sem emissão significativa
-                    pixels[y * textureResolution + x] = black;
-                }
-            }
-        }
-
-        tex.SetPixels(pixels);
-        tex.Apply();
-        return tex;
-    }
-
-    // Textura de nuvens — ruído suave com transparência variável
-    Texture2D GenerateCloudTexture()
-    {
-        Texture2D tex    = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, false);
-        Color[]   pixels = new Color[textureResolution * textureResolution];
-
-        // Cor das nuvens: branco para planetas rochosos, azulado para gigantes de gelo
-        Color cloudColor = isIceGiant
-            ? new Color(0.70f, 0.85f, 1.00f)
-            : new Color(0.95f, 0.95f, 1.00f);
-
-        for (int y = 0; y < textureResolution; y++)
-        {
-            for (int x = 0; x < textureResolution; x++)
-            {
-                float u       = (float)x / textureResolution;
-                float v       = (float)y / textureResolution;
-                float3 sphPos = UVToSphere(u, v);
-
-                // Duas camadas de ruído para nuvens mais naturais
-                float cloud1  = noise.snoise(sphPos * 2.2f + seed + 300f) * 0.5f + 0.5f;
-                float cloud2  = noise.snoise(sphPos * 4.5f + seed + 400f) * 0.5f + 0.5f;
-                float cloud   = cloud1 * 0.65f + cloud2 * 0.35f;
-
-                // Só mostra nuvens acima do threshold de cobertura
-                float alpha   = Mathf.Clamp01((cloud - (1f - cloudCoverage)) / 0.3f) * cloudOpacity;
-
-                pixels[y * textureResolution + x] = new Color(cloudColor.r, cloudColor.g, cloudColor.b, alpha);
-            }
-        }
-
-        tex.SetPixels(pixels);
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
 
     // Converte coordenadas UV para posição na esfera unitária
     // Evita a distorção que aconteceria com ruído 2D aplicado a UV plano

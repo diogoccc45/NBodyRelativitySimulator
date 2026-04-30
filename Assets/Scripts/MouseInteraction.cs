@@ -42,6 +42,16 @@ public class MouseInteraction : MonoBehaviour
     public Minimap minimap; // minimap — toggle com T
     private bool showSpatialTools = true; // controla linha + grid + minimap com T
 
+    [Header("Modo de Mira (Colisão Direta)")]
+    public LineRenderer aimLine; // linha tracejada do cursor ao alvo
+    public TextMeshProUGUI aimText; // texto HUD "Click to launch toward target"
+    public Material aimRingMaterial; // material do anel de highlight no alvo
+
+    // Estado interno do modo de mira
+    private StarComponent aimTarget = null; // planeta alvo selecionado
+    private GameObject aimRingInstance = null; // anel pulsante à volta do alvo
+    private bool isAiming = false; // true quando modo de mira está ativo
+
     [HideInInspector]
     public GameObject lastCreatedObject; // Variável para a câmara saber onde voltar
 
@@ -141,12 +151,181 @@ public class MouseInteraction : MonoBehaviour
         }
 
         UpdateDistanceHUD();
+        HandleAimMode();
         HandleInput();
+    }
+
+    // Modo de Mira
+    // Clique direito num planeta - marca como alvo (anel pulsante)
+    // Clique esquerdo - cria planeta lançado diretamente para o alvo
+    // Clique direito novamente ou Escape - cancela
+    void HandleAimMode()
+    {
+        // Clique direito — seleciona ou cancela alvo
+        if (Mouse.current.rightButton.wasPressedThisFrame
+            && !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()
+            && currentPrefab == planetPrefab
+            && !isDragging)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                StarComponent sc = hit.collider.GetComponent<StarComponent>();
+                if (sc != null && sc.isPlanet)
+                {
+                    if (aimTarget == sc)
+                        CancelAimMode(); // clique direito no mesmo → cancela
+                    else
+                        EnterAimMode(sc);
+                    return;
+                }
+            }
+            // Clique direito no vazio → cancela
+            if (isAiming) CancelAimMode();
+        }
+
+        // Escape — cancela modo de mira
+        if (isAiming && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            CancelAimMode();
+            return;
+        }
+
+        if (!isAiming) return;
+
+        // Atualiza o anel pulsante à volta do alvo
+        if (aimTarget == null) { CancelAimMode(); return; }
+        UpdateAimRing();
+
+        // Linha de mira do cursor ao alvo
+        Vector3 mousePos = GetMouseWorldPos();
+        if (aimLine != null)
+        {
+            aimLine.enabled = true;
+            aimLine.positionCount = 2;
+            aimLine.SetPosition(0, mousePos);
+            aimLine.SetPosition(1, aimTarget.transform.position);
+        }
+
+        // Previsão do ponto de impacto — marcador X no alvo
+        if (aimText != null)
+        {
+            float dist = Vector3.Distance(mousePos, aimTarget.transform.position);
+            float distReal = dist * distToAU;
+            aimText.enabled = true;
+            aimText.text = "<b>TARGET LOCKED</b>" + " " + "Right-click or Esc to cancel" + " " + $"Dist: {distReal:F2} AU";
+        }
+
+        // Clique esquerdo no modo de mira — lança planeta diretamente para o alvo
+        if (Input.GetMouseButtonDown(0)
+            && !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            LaunchTowardTarget(mousePos);
+        }
+    }
+
+    void EnterAimMode(StarComponent target)
+    {
+        CancelAimMode(); // limpa estado anterior se houver
+
+        isAiming = true;
+        aimTarget = target;
+
+        // Esconde o ghost enquanto está em modo de mira
+        if (ghostInstance != null) ghostInstance.SetActive(false);
+
+        // Cria o anel de highlight à volta do alvo
+        aimRingInstance = new GameObject("AimRing");
+        LineRenderer lr = aimRingInstance.AddComponent<LineRenderer>();
+        int segs = 48;
+        lr.positionCount = segs + 1;
+        lr.useWorldSpace = true;
+        lr.loop = false;
+
+        Material mat = aimRingMaterial != null
+            ? new Material(aimRingMaterial)
+            : new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color"));
+        mat.color = new Color(1f, 0.3f, 0.2f, 1f); // vermelho — alvo selecionado
+        mat.SetColor("_BaseColor", new Color(1f, 0.3f, 0.2f, 1f));
+        lr.material = mat;
+        lr.startWidth = 0.08f;
+        lr.endWidth = 0.08f;
+
+    }
+
+    void UpdateAimRing()
+    {
+        if (aimRingInstance == null || aimTarget == null) return;
+
+        LineRenderer lr = aimRingInstance.GetComponent<LineRenderer>();
+        if (lr == null) return;
+
+        // Anel pulsante — raio oscila suavemente
+        float baseRadius = aimTarget.transform.localScale.x * 0.8f;
+        float pulse = Mathf.Sin(Time.time * 4f) * 0.1f;
+        float radius = baseRadius + pulse;
+        int segs = 48;
+
+        aimRingInstance.transform.position = aimTarget.transform.position;
+
+        for (int i = 0; i <= segs; i++)
+        {
+            float angle = (float)i / segs * Mathf.PI * 2f;
+            lr.SetPosition(i, aimTarget.transform.position + new Vector3(
+                Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
+        }
+
+        // Cor pulsa entre vermelho e laranja
+        float colorPulse = Mathf.Sin(Time.time * 3f) * 0.5f + 0.5f;
+        Color ringColor  = Color.Lerp(new Color(1f, 0.2f, 0.1f), new Color(1f, 0.7f, 0.1f), colorPulse);
+        lr.material.color = ringColor;
+        lr.material.SetColor("_BaseColor", ringColor);
+    }
+
+    void LaunchTowardTarget(Vector3 launchPos)
+    {
+        if (aimTarget == null) return;
+
+        // Velocidade calculada para colidir diretamente com o alvo
+        // v = distância / tempo estimado, apontada ao alvo
+        Vector3 toTarget = aimTarget.transform.position - launchPos;
+        float dist = toTarget.magnitude;
+
+        // Velocidade de colisão: suficiente para chegar ao alvo num tempo razoável
+        // Usa a mesma escala do estilingue normal para consistência
+        float speed = Mathf.Clamp(dist * launchForceMultiplier * 1.5f, 2f, 50f);
+        Vector3 launchVel = toTarget.normalized * speed;
+
+        float spawnMass = SliderToPlanetMass(massSlider.value);
+        lastCreatedObject = manager.CreateStarCustom(planetPrefab, launchPos, launchVel, spawnMass);
+
+        // Mantém o alvo selecionado para poder lançar múltiplos planetas
+        // (cancela só com clique direito ou Escape)
+    }
+
+    void CancelAimMode()
+    {
+        isAiming  = false;
+        aimTarget = null;
+
+        if (aimRingInstance != null)
+        {
+            Destroy(aimRingInstance);
+            aimRingInstance = null;
+        }
+        if (aimLine != null) aimLine.enabled = false;
+        if (aimText != null) aimText.enabled = false;
+
+        // Mostra o ghost novamente ao sair do modo de mira
+        if (ghostInstance != null) ghostInstance.SetActive(true);
     }
 
     void HandleInput()
     {
         if (ghostInstance == null) return;
+        
+        // Se estamos em modo de mira, o clique esquerdo é tratado por HandleAimMode
+        if (isAiming) return;
 
         // Deteta o início do clique (Prepara o nascimento da estrela)
         if (Input.GetMouseButtonDown(0) && !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
