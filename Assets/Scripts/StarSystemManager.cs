@@ -21,6 +21,10 @@ public class StarSystemManager : MonoBehaviour
     private bool isPaused = false;
     public void SetPaused(bool paused) => isPaused = paused;
 
+    // Evento disparado sempre que um planeta entra ou sai da simulação
+    // O SettingsPanel subscreve isto para atualizar o tooltip em tempo real
+    public event System.Action OnStarListChanged;
+
     // Referência ao PlanetAbsorption — gere a sequência visual de absorção
     private PlanetAbsorption absorptionHandler;
 
@@ -99,6 +103,7 @@ public class StarSystemManager : MonoBehaviour
             sc.UpdateAppearance();
 
             stars.Add(sc);
+            OnStarListChanged?.Invoke(); // notifica o SettingsPanel
         }
 
         return obj; // Retorna o objeto criado para o MouseInteraction guardar a referência
@@ -244,6 +249,7 @@ public class StarSystemManager : MonoBehaviour
                             stars.RemoveAt(i);
                             int newJ = j < i ? j : j - 1;
                             if (newJ >= 0 && newJ < stars.Count) stars.RemoveAt(newJ);
+                            OnStarListChanged?.Invoke();
                         }
                         else if (pc.mode == PlanetCollision.CollisionMode.FragmentByMass)
                         {
@@ -256,6 +262,7 @@ public class StarSystemManager : MonoBehaviour
                                 // Só remove o menor — o maior sobrevive na simulação com textura
                                 StarComponent smaller = a.mass < b.mass ? a : b;
                                 stars.Remove(smaller);
+                                OnStarListChanged?.Invoke();
                             }
                             else
                             {
@@ -272,6 +279,7 @@ public class StarSystemManager : MonoBehaviour
                     stars.RemoveAt(i);
                     int newJ = j < i ? j : j - 1;
                     if (newJ >= 0 && newJ < stars.Count) stars.RemoveAt(newJ);
+                    OnStarListChanged?.Invoke();
                     a.StartCoroutine(a.DestroyAnimation());
                     b.StartCoroutine(b.DestroyAnimation());
                 }
@@ -304,6 +312,7 @@ public class StarSystemManager : MonoBehaviour
                 StarComponent planet = stars[i];
                 StarComponent star = stars[j];
                 stars.RemoveAt(i);
+                OnStarListChanged?.Invoke(); // notifica o SettingsPanel
 
                 if (absorptionHandler != null)
                     absorptionHandler.StartAbsorption(planet, star);
@@ -342,7 +351,8 @@ public class StarSystemManager : MonoBehaviour
     // Remove um objeto da simulação N-body
     public void RemoveFromSimulation(StarComponent sc)
     {
-        stars.Remove(sc);
+        if (stars.Remove(sc))
+            OnStarListChanged?.Invoke(); // notifica o SettingsPanel
     }
 
     // Conta quantos planetas têm esta estrela como a mais próxima deles

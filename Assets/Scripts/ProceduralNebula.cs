@@ -5,27 +5,48 @@ public class ProceduralNebula : MonoBehaviour
 {
     [Header("Configurações de Visual")]
     public Material nebulaMaterial;
-    public int cloudCount = 150;
+    public int cloudCount = 80;
     public float radius = 1200f;
-    public float cloudSize = 400f;
 
-    private Vector3[] cloudCenters;
+    [Header("Tamanho das Nuvens")]
+    [Tooltip("Tamanho mínimo — nuvens pequenas e brilhantes em primeiro plano")]
+    public float cloudSizeMin = 60f;
+    [Tooltip("Tamanho máximo — nuvens grandes e difusas ao fundo")]
+    public float cloudSizeMax = 280f;
+    [Tooltip("Expoente da distribuição — valores > 1 favorecem nuvens pequenas (mais contraste)")]
+    public float sizeDistributionPower = 2.2f;
+
+    private Vector3[] cloudOffsets;    // offsets RELATIVOS à câmara — nunca mudam após Start()
+    private float[]   cloudColorIndices; // índice de cor por quad (0-1) → shader _ColorIndex
+    private float[]   cloudSizes;      // tamanho individual por quad
     private Mesh mesh;
     private Vector3[] vertices;
 
     void Start()
     {
-        // Gera as posições aleatórias uma vez
-        cloudCenters = new Vector3[cloudCount];
-        for (int i = 0; i < cloudCount; i++)
-            cloudCenters[i] = Random.insideUnitSphere * radius;
+        cloudOffsets      = new Vector3[cloudCount];
+        cloudColorIndices = new float[cloudCount];
+        cloudSizes        = new float[cloudCount];
 
-        // Cria a mesh vazia com o tamanho certo
+        for (int i = 0; i < cloudCount; i++)
+        {
+            cloudOffsets[i]      = Random.insideUnitSphere * radius;
+            cloudColorIndices[i] = Random.value;
+
+            // Distribuição de tamanhos com power — a maioria das nuvens é pequena,
+            // poucas são grandes. Dá profundidade e evita que tudo pareça igual.
+            // t = 0 → cloudSizeMin (pequenas), t = 1 → cloudSizeMax (grandes)
+            float t = Mathf.Pow(Random.value, sizeDistributionPower);
+            cloudSizes[i] = Mathf.Lerp(cloudSizeMin, cloudSizeMax, t);
+        }
+
         mesh = new Mesh();
         mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
         vertices      = new Vector3[cloudCount * 4];
         Vector2[] uv  = new Vector2[cloudCount * 4];
+        // UV2: x = índice de cor, y = tamanho normalizado (0-1) para o shader poder variar brilho por tamanho
+        Vector2[] uv2 = new Vector2[cloudCount * 4];
         int[] tris    = new int[cloudCount * 6];
 
         for (int i = 0; i < cloudCount; i++)
@@ -35,6 +56,14 @@ public class ProceduralNebula : MonoBehaviour
             uv[vIdx + 1] = new Vector2(1, 0);
             uv[vIdx + 2] = new Vector2(1, 1);
             uv[vIdx + 3] = new Vector2(0, 1);
+
+            float ci        = cloudColorIndices[i];
+            // y = tamanho normalizado — nuvens grandes ficam mais difusas (menos brilho no shader)
+            float sizeNorm  = Mathf.InverseLerp(cloudSizeMin, cloudSizeMax, cloudSizes[i]);
+            uv2[vIdx + 0] = new Vector2(ci, sizeNorm);
+            uv2[vIdx + 1] = new Vector2(ci, sizeNorm);
+            uv2[vIdx + 2] = new Vector2(ci, sizeNorm);
+            uv2[vIdx + 3] = new Vector2(ci, sizeNorm);
 
             int tIdx = i * 6;
             tris[tIdx + 0] = vIdx + 0;
@@ -47,6 +76,7 @@ public class ProceduralNebula : MonoBehaviour
 
         mesh.vertices  = vertices;
         mesh.uv        = uv;
+        mesh.uv2       = uv2;
         mesh.triangles = tris;
         mesh.bounds    = new Bounds(Vector3.zero, Vector3.one * 100000f);
 
@@ -62,20 +92,17 @@ public class ProceduralNebula : MonoBehaviour
     {
         if (Camera.main == null || mesh == null) return;
 
-        // Segue a câmara
+        // Segue a câmara — os quads ficam sempre centrados nela
         transform.position = Camera.main.transform.position;
         transform.rotation = Quaternion.identity;
 
-        // Recalcula os vértices de cada quad para ficarem virados para a câmara (billboard)
-        // A câmara está na origem do objeto (transform.position = Camera.main.transform.position)
-        // por isso o vetor "para a câmara" é simplesmente -cloudCenter normalizado
         Vector3 camRight = Camera.main.transform.right;
         Vector3 camUp    = Camera.main.transform.up;
-        float   s        = cloudSize * 0.5f;
 
         for (int i = 0; i < cloudCount; i++)
         {
-            Vector3 c = cloudCenters[i];
+            Vector3 c = cloudOffsets[i];
+            float   s = cloudSizes[i] * 0.5f; // tamanho individual por quad
 
             int vIdx = i * 4;
             vertices[vIdx + 0] = c + (-camRight - camUp) * s;

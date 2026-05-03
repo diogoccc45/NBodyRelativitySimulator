@@ -41,6 +41,18 @@ public class SettingsPanel : MonoBehaviour
 
     private bool isOpen = false;
 
+    void Update()
+    {
+        // Atualiza o warning em tempo real enquanto o painel está aberto no modo Fragment By Mass
+        // Polling simples — evita problemas de timing na subscrição de eventos
+        if (isOpen
+            && planetCollision != null
+            && planetCollision.mode == PlanetCollision.CollisionMode.FragmentByMass)
+        {
+            UpdateFragmentWarning();
+        }
+    }
+
     void Start()
     {
         // Inicializa o CanvasGroup — painel começa invisível e não-interativo
@@ -76,6 +88,11 @@ public class SettingsPanel : MonoBehaviour
                 restitutionSlider.value = planetCollision.restitutionCoeff;
                 restitutionSlider.onValueChanged.AddListener(OnRestitutionChanged);
             }
+
+            // Subscreve o evento do StarSystemManager — atualiza o tooltip sempre que
+            // um planeta entra ou sai da simulação (não só quando colide)
+            if (planetCollision.manager != null)
+                planetCollision.manager.OnStarListChanged += OnPlanetListChanged;
         }
 
         // Configura o dropdown com as opções de modo
@@ -100,6 +117,21 @@ public class SettingsPanel : MonoBehaviour
         // Tooltip começa escondido
         if (tooltipPanel != null) tooltipPanel.SetActive(false);
         if (warningText  != null) warningText.gameObject.SetActive(false);
+    }
+
+    void OnDestroy()
+    {
+        // Dessubscreve para evitar erros ao destruir o objeto
+        if (planetCollision?.manager != null)
+            planetCollision.manager.OnStarListChanged -= OnPlanetListChanged;
+    }
+
+    // Chamado pelo evento do StarSystemManager quando a lista de planetas muda
+    void OnPlanetListChanged()
+    {
+        if (planetCollision != null &&
+            planetCollision.mode == PlanetCollision.CollisionMode.FragmentByMass)
+            UpdateFragmentWarning();
     }
 
     // Chamado pelo botão de engrenagem
@@ -255,6 +287,7 @@ public class SettingsPanel : MonoBehaviour
     }
 
     // Analisa os planetas existentes e atualiza o aviso + conteúdo do tooltip
+    // Inclui também a massa do planeta que está a ser configurado no slider (ainda não criado)
     void UpdateFragmentWarning()
     {
         if (planetCollision == null || planetCollision.manager == null) return;
@@ -264,81 +297,115 @@ public class SettingsPanel : MonoBehaviour
             ? stars.FindAll(s => s != null && s.isPlanet)
             : new System.Collections.Generic.List<StarComponent>();
 
+        // Massa do planeta que o utilizador está a configurar no slider (ainda não criado)
+        // Lê diretamente o massSlider do MouseInteraction — não precisa de nenhum método extra
+        // O slider de planetas tem maxValue = 1.0 (logarítmico); o de estrelas vai até 500
+        float pendingMass = -1f;
+        if (mouseInteraction != null && mouseInteraction.massSlider != null
+            && mouseInteraction.massSlider.maxValue <= 1f)
+        {
+            // Replica o mesmo cálculo logarítmico do MouseInteraction.SliderToPlanetMass()
+            const float logMin = 0.33f;
+            const float logMax = 51f;
+            pendingMass = logMin * Mathf.Pow(logMax / logMin, mouseInteraction.massSlider.value);
+        }
+        bool hasPending = pendingMass > 0f;
+
         float threshold = planetCollision.massRatioThreshold;
         bool  anyWillBounce = false;
-        bool  anyWillFrag = false;
+        bool  anyWillFrag   = false;
 
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         sb.AppendLine("<b>Fragment By Mass — Analysis</b>");
         sb.AppendLine($"Threshold: <b>{threshold:F1}x</b>");
 
-        if (planets.Count < 2)
+        // Caso: há planetas na cena e um planeta a ser configurado
+        // Mostra o que acontece se este planeta colidir com cada um dos existentes
+        if (hasPending && planets.Count >= 1)
+        {
+            float pendingMassEarth = pendingMass * 0.333f;
+            sb.AppendLine($"<b>Next planet ({pendingMassEarth:F1} M_Earth) vs existing:</b>");
+
+            for (int i = 0; i < planets.Count; i++)
+            {
+                float larger  = Mathf.Max(pendingMass, planets[i].mass);
+                float smaller = Mathf.Min(pendingMass, planets[i].mass);
+                float ratio   = larger / Mathf.Max(smaller, 0.01f);
+                bool  frags   = ratio >= threshold;
+
+                if (frags) anyWillFrag   = true;
+                else       anyWillBounce = true;
+
+                float existingMassEarth = planets[i].mass * 0.333f;
+                string icon = frags ? "<color=#00ff88>✓ FRAGMENT</color>"
+                                    : "<color=#ff8800>[!] BOUNCE</color>";
+
+                sb.AppendLine($"  vs {planets[i].gameObject.name} ({existingMassEarth:F1} M_Earth)" +
+                              $" — ratio <b>{ratio:F1}x</b>  {icon}");
+            }
+            sb.AppendLine();
+        }
+        else if (!hasPending && planets.Count < 2)
         {
             sb.AppendLine("No planet pairs in scene yet.");
             sb.AppendLine("Create at least 2 planets to see collision predictions.");
         }
-        else
+
+        // Pares entre planetas já existentes (independentemente do planeta pendente)
+        if (planets.Count >= 2)
         {
-            sb.AppendLine("<b>Current planet pairs:</b>");
+            if (hasPending) sb.AppendLine("<b>Existing pairs:</b>");
+            else            sb.AppendLine("<b>Current planet pairs:</b>");
+
             for (int i = 0; i < planets.Count; i++)
             {
                 for (int j = i + 1; j < planets.Count; j++)
                 {
-                    float larger = Mathf.Max(planets[i].mass, planets[j].mass);
+                    float larger  = Mathf.Max(planets[i].mass, planets[j].mass);
                     float smaller = Mathf.Min(planets[i].mass, planets[j].mass);
-                    float ratio = larger / Mathf.Max(smaller, 0.01f);
-                    bool  frags = ratio >= threshold;
+                    float ratio   = larger / Mathf.Max(smaller, 0.01f);
+                    bool  frags   = ratio >= threshold;
 
-                    if (frags) anyWillFrag = true;
-                    else anyWillBounce = true;
+                    if (frags) anyWillFrag   = true;
+                    else       anyWillBounce = true;
 
                     // Converte massas internas para M_Earth para exibição
                     float massA = planets[i].mass * 0.333f;
                     float massB = planets[j].mass * 0.333f;
                     string icon = frags ? "<color=#00ff88>✓ FRAGMENT</color>"
-                                        : "<color=#ff8800>⚠ BOUNCE</color>";
+                                        : "<color=#ff8800>[!] BOUNCE</color>";
 
-                    sb.AppendLine($"• {planets[i].gameObject.name} ({massA:F1} M⊕)" +
-                                  $" vs {planets[j].gameObject.name} ({massB:F1} M⊕)" +
+                    sb.AppendLine($"  {planets[i].gameObject.name} ({massA:F1} M_Earth)" +
+                                  $" vs {planets[j].gameObject.name} ({massB:F1} M_Earth)" +
                                   $" — ratio <b>{ratio:F1}x</b>  {icon}");
                 }
             }
-
             sb.AppendLine();
+        }
 
-            if (anyWillBounce && !anyWillFrag)
-            {
-                float minRatio = float.MaxValue;
-                for (int i = 0; i < planets.Count; i++)
-                    for (int j = i + 1; j < planets.Count; j++)
-                    {
-                        float r = Mathf.Max(planets[i].mass, planets[j].mass)
-                                / Mathf.Max(Mathf.Min(planets[i].mass, planets[j].mass), 0.01f);
-                        if (r < minRatio) minRatio = r;
-                    }
-                sb.AppendLine($"<color=#ff8800>All pairs will BOUNCE with threshold {threshold:F1}x.</color>");
-                sb.AppendLine($"Lower threshold below <b>{minRatio:F1}x</b> to enable fragmentation.");
-                sb.AppendLine("<i>Tip: Switch to 'Fragment All' to ignore mass ratios.</i>");
-            }
-            else if (anyWillBounce)
-            {
-                sb.AppendLine("<color=#ff8800>Some pairs will bounce — lower the threshold to fragment them.</color>");
-            }
-            else
-            {
-                sb.AppendLine("<color=#00ff88>All pairs will fragment! ✓</color>");
-            }
+        if (anyWillBounce && !anyWillFrag)
+        {
+            sb.AppendLine($"<color=#ff8800>All pairs will BOUNCE with threshold {threshold:F1}x.</color>");
+            sb.AppendLine("<i>Tip: Switch to 'Fragment All' to ignore mass ratios.</i>");
+        }
+        else if (anyWillBounce)
+        {
+            sb.AppendLine("<color=#ff8800>Some pairs will bounce — lower the threshold to fragment them.</color>");
+        }
+        else if (anyWillFrag)
+        {
+            sb.AppendLine("<color=#00ff88>All pairs will fragment!</color>");
         }
 
         // Atualiza o tooltip
         if (tooltipText != null)
             tooltipText.text = sb.ToString();
 
-        // Mostra/esconde o aviso ⚠ ao lado do slider
+        // Mostra/esconde o aviso [!] ao lado do slider
         if (warningText != null)
         {
             warningText.gameObject.SetActive(anyWillBounce);
-            warningText.text  = "⚠";
+            warningText.text  = "[!]";
             warningText.color = new Color(1f, 0.55f, 0f); // laranja
         }
 

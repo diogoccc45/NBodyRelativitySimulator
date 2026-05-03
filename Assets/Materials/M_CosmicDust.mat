@@ -21,18 +21,17 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: M_CosmicDust
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Shader: {fileID: 4800000, guid: fb2881cf5e3cf294991eaa70d0c08825, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _SURFACE_TYPE_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 3000
-  stringTagMap:
-    RenderType: Transparent
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
   - DepthOnly
@@ -105,9 +104,11 @@ Material:
     - _Blend: 2
     - _BlendModePreserveSpecular: 1
     - _BlendOp: 0
+    - _Brightness: 0.43
     - _BumpScale: 1
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
+    - _ColorIndex: 0
     - _Cull: 2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
@@ -115,10 +116,13 @@ Material:
     - _DstBlend: 1
     - _DstBlendAlpha: 1
     - _EnvironmentReflections: 1
+    - _FalloffPower: 1.4
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _Metallic: 0
+    - _NoiseScale: 6
+    - _NoiseStrength: 0.63
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
@@ -136,6 +140,9 @@ Material:
     m_Colors:
     - _BaseColor: {r: 0.0026032352, g: 0.03601144, b: 0.18396229, a: 0.03137255}
     - _Color: {r: 0.0026032352, g: 0.03601144, b: 0.18396226, a: 0.03137255}
+    - _ColorA: {r: 0.15, g: 0.1, b: 0.45, a: 0.8980392}
+    - _ColorB: {r: 0.35, g: 0.15, b: 0.05, a: 0.84705883}
+    - _ColorC: {r: 0.09999997, g: 0.24999997, b: 0.8, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
   m_BuildTextureStacks: []
