@@ -177,19 +177,78 @@ public class StarComponent : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // Heat Map de Velocidade
+    // Chamado pelo MouseInteraction quando H está ativo
+    // Substitui o gradiente do trail por uma escala de cor baseada na velocidade:
+    // azul (lento) → ciano → branco → laranja → vermelho (rápido)
+    public void UpdateTrailHeatmap(float maxSpeed)
+    {
+        if (starTrail == null) return;
+
+        float speed  = velocity.magnitude;
+        float t      = Mathf.Clamp01(speed / Mathf.Max(maxSpeed, 0.01f));
+
+        // Sequência de cores: azul → ciano → branco → laranja → vermelho
+        Color heatColor;
+        if (t < 0.25f)
+            heatColor = Color.Lerp(new Color(0.1f, 0.2f, 1.0f), // azul frio
+                                   new Color(0.1f, 0.9f, 0.9f), // ciano
+                                   t / 0.25f);
+        else if (t < 0.5f)
+            heatColor = Color.Lerp(new Color(0.1f, 0.9f, 0.9f), // ciano
+                                   new Color(1.0f, 1.0f, 1.0f), // branco
+                                   (t - 0.25f) / 0.25f);
+        else if (t < 0.75f)
+            heatColor = Color.Lerp(new Color(1.0f, 1.0f, 1.0f), // branco
+                                   new Color(1.0f, 0.45f, 0.1f), // laranja
+                                   (t - 0.5f) / 0.25f);
+        else
+            heatColor = Color.Lerp(new Color(1.0f, 0.45f, 0.1f), // laranja
+                                   new Color(1.0f, 0.05f, 0.05f), // vermelho quente
+                                   (t - 0.75f) / 0.25f);
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new GradientColorKey[]
+            {
+                new GradientColorKey(heatColor, 0.0f),
+                new GradientColorKey(heatColor * 0.5f, 1.0f) // cauda mais escura
+            },
+            new GradientAlphaKey[]
+            {
+                new GradientAlphaKey(0.9f, 0.0f),
+                new GradientAlphaKey(0.0f, 1.0f)
+            }
+        );
+        starTrail.colorGradient = gradient;
+
+        // Força a atualização do material — igual ao UpdateAppearance
+        if (starTrail.material.HasProperty("_BaseColor"))
+            starTrail.material.SetColor("_BaseColor", heatColor);
+    }
+
+    // Repõe o gradiente original do trail (cor do corpo)
+    // Chamado quando H é desligado
+    public void RestoreTrailColor()
+    {
+        if (starTrail == null) return;
+        // Chama o UpdateAppearance que já trata do gradiente correto
+        UpdateAppearance();
+    }
+
     // Pulso de brilho na estrela ao absorver um planeta
     public System.Collections.IEnumerator AbsorptionPulse()
     {
         if (starRenderer == null) yield break;
 
-        float duration  = 0.5f;
-        float elapsed   = 0f;
+        float duration = 0.5f;
+        float elapsed = 0f;
         Color baseColor = starRenderer.material.color;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t  = Mathf.Sin((elapsed / duration) * Mathf.PI); // curva de pulso suave
+            float t = Mathf.Sin((elapsed / duration) * Mathf.PI); // curva de pulso suave
 
             starRenderer.material.SetColor("_EmissionColor", baseColor * Mathf.Lerp(3f, 8f, t));
             yield return null;

@@ -42,6 +42,13 @@ public class MouseInteraction : MonoBehaviour
     public Minimap minimap; // minimap — toggle com T
     private bool showSpatialTools = true; // controla linha + grid + minimap com T
 
+    [Header("Linhas de Força Gravitacional")]
+    public GravityLines gravityLines; // script que desenha as linhas — toggle com G
+    private bool showGravityLines = false; // começa desligado
+
+    [Header("Heat Map de Velocidade")]
+    private bool showHeatmap = false; // toggle com H — substitui cor do trail por velocidade
+
     [Header("Modo de Mira (Colisão Direta)")]
     public LineRenderer aimLine; // linha tracejada do cursor ao alvo
     public TextMeshProUGUI aimText; // texto HUD "Click to launch toward target"
@@ -465,9 +472,9 @@ public class MouseInteraction : MonoBehaviour
 
     public float spawnDistance = 20f;
     // Conversão de fatores (game units -> realidade)
-    const float massStarToSolar   = 0.004f;  // 250 unidades = 1.0 M_sun
-    const float massPlanetToEarth = 0.333f;  // 1 unidade = 0.333 M_earth
-    const float distToAU          = 0.1f;    // 1 game unit = 0.1 AU
+    const float massStarToSolar = 0.004f; // 250 unidades = 1.0 M_sun
+    const float massPlanetToEarth = 0.333f; // 1 unidade = 0.333 M_earth
+    const float distToAU = 0.1f; // 1 game unit = 0.1 AU
 
     // Simula a trajetória do planeta em memória e desenha-a com o trajectoryLine
     void DrawTrajectoryPreview(Vector3 startPos, Vector3 startVel)
@@ -511,6 +518,45 @@ public class MouseInteraction : MonoBehaviour
         {
             showSpatialTools = !showSpatialTools;
             if (minimap != null) minimap.Toggle(showSpatialTools);
+        }
+
+        // Toggle G — linhas de força gravitacional
+        if (Keyboard.current.gKey.wasPressedThisFrame)
+        {
+            showGravityLines = !showGravityLines;
+            if (gravityLines != null) gravityLines.SetActive(showGravityLines);
+        }
+
+        // Toggle H — heat map de velocidade no trail
+        if (Keyboard.current.hKey.wasPressedThisFrame)
+        {
+            showHeatmap = !showHeatmap;
+
+            // Se desligamos, repõe a cor original em todos os corpos
+            if (!showHeatmap)
+            {
+                var stars = manager.GetStars();
+                if (stars != null)
+                    foreach (var sc in stars)
+                        if (sc != null) sc.RestoreTrailColor();
+            }
+        }
+
+        // Heat map ativo — atualiza o trail de todos os corpos com base na velocidade máxima atual
+        if (showHeatmap)
+        {
+            var stars = manager.GetStars();
+            if (stars != null && stars.Count > 0)
+            {
+                // Calcula a velocidade máxima atual para normalizar o gradiente
+                float maxSpeed = 0.01f;
+                foreach (var sc in stars)
+                    if (sc != null && sc.velocity.magnitude > maxSpeed)
+                        maxSpeed = sc.velocity.magnitude;
+
+                foreach (var sc in stars)
+                    if (sc != null) sc.UpdateTrailHeatmap(maxSpeed);
+            }
         }
 
         if (currentPrefab != planetPrefab)

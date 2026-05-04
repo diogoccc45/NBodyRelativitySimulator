@@ -89,8 +89,7 @@ public class SettingsPanel : MonoBehaviour
                 restitutionSlider.onValueChanged.AddListener(OnRestitutionChanged);
             }
 
-            // Subscreve o evento do StarSystemManager — atualiza o tooltip sempre que
-            // um planeta entra ou sai da simulação (não só quando colide)
+            // Subscreve o evento do StarSystemManager — atualiza o tooltip sempre que um planeta entra ou sai da simulação (não só quando colide)
             if (planetCollision.manager != null)
                 planetCollision.manager.OnStarListChanged += OnPlanetListChanged;
         }
@@ -116,7 +115,7 @@ public class SettingsPanel : MonoBehaviour
 
         // Tooltip começa escondido
         if (tooltipPanel != null) tooltipPanel.SetActive(false);
-        if (warningText  != null) warningText.gameObject.SetActive(false);
+        if (warningText != null) warningText.gameObject.SetActive(false);
     }
 
     void OnDestroy()
@@ -245,10 +244,10 @@ public class SettingsPanel : MonoBehaviour
         // Mostra só os parâmetros relevantes para o modo atual
         bool isFragment = current == PlanetCollision.CollisionMode.FragmentByMass
                        || current == PlanetCollision.CollisionMode.FragmentAll;
-        bool isBounce   = current == PlanetCollision.CollisionMode.Bounce;
+        bool isBounce = current == PlanetCollision.CollisionMode.Bounce;
 
         if (fragmentationParams != null) fragmentationParams.SetActive(isFragment);
-        if (bounceParams        != null) bounceParams.SetActive(isBounce);
+        if (bounceParams != null) bounceParams.SetActive(isBounce);
 
         // Esconde o slider de rácio de massa no modo FragmentAll (não é relevante)
         if (massRatioSlider != null)
@@ -312,8 +311,8 @@ public class SettingsPanel : MonoBehaviour
         bool hasPending = pendingMass > 0f;
 
         float threshold = planetCollision.massRatioThreshold;
-        bool  anyWillBounce = false;
-        bool  anyWillFrag   = false;
+        bool anyWillBounce = false;
+        bool anyWillFrag = false;
 
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         sb.AppendLine("<b>Fragment By Mass — Analysis</b>");
@@ -328,13 +327,13 @@ public class SettingsPanel : MonoBehaviour
 
             for (int i = 0; i < planets.Count; i++)
             {
-                float larger  = Mathf.Max(pendingMass, planets[i].mass);
+                float larger = Mathf.Max(pendingMass, planets[i].mass);
                 float smaller = Mathf.Min(pendingMass, planets[i].mass);
-                float ratio   = larger / Mathf.Max(smaller, 0.01f);
-                bool  frags   = ratio >= threshold;
+                float ratio = larger / Mathf.Max(smaller, 0.01f);
+                bool  frags = ratio >= threshold;
 
-                if (frags) anyWillFrag   = true;
-                else       anyWillBounce = true;
+                if (frags) anyWillFrag = true;
+                else anyWillBounce = true;
 
                 float existingMassEarth = planets[i].mass * 0.333f;
                 string icon = frags ? "<color=#00ff88>✓ FRAGMENT</color>"
@@ -355,7 +354,7 @@ public class SettingsPanel : MonoBehaviour
         if (planets.Count >= 2)
         {
             if (hasPending) sb.AppendLine("<b>Existing pairs:</b>");
-            else            sb.AppendLine("<b>Current planet pairs:</b>");
+            else sb.AppendLine("<b>Current planet pairs:</b>");
 
             for (int i = 0; i < planets.Count; i++)
             {
@@ -364,10 +363,10 @@ public class SettingsPanel : MonoBehaviour
                     float larger  = Mathf.Max(planets[i].mass, planets[j].mass);
                     float smaller = Mathf.Min(planets[i].mass, planets[j].mass);
                     float ratio   = larger / Mathf.Max(smaller, 0.01f);
-                    bool  frags   = ratio >= threshold;
+                    bool frags = ratio >= threshold;
 
                     if (frags) anyWillFrag   = true;
-                    else       anyWillBounce = true;
+                    else anyWillBounce = true;
 
                     // Converte massas internas para M_Earth para exibição
                     float massA = planets[i].mass * 0.333f;
