@@ -226,7 +226,30 @@ public class Minimap : MonoBehaviour
 
     void LateUpdate()
     {
-        if (!isVisible || manager == null || minimapCam == null) return;
+        // Bússola e indicador da câmara atualizam sempre — independentemente do manager
+        UpdateCompass();
+        UpdateCamIndicator();
+
+        if (!isVisible || minimapCam == null) return;
+
+        // Modo sem manager (cena de Relatividade) — câmara do minimap segue a câmara principal
+        // com zoom fixo baseado no tamanho da grid
+        if (manager == null)
+        {
+            if (mainCamera != null)
+            {
+                Vector3 camPos     = mainCamera.transform.position;
+                Vector3 followPos  = new Vector3(camPos.x, minimapHeight, camPos.z);
+                minimapCam.transform.position = Vector3.Lerp(
+                    minimapCam.transform.position, followPos, smoothSpeed * Time.deltaTime);
+            }
+            // Zoom fixo para cobrir a grid toda
+            minimapCam.orthographicSize = Mathf.Lerp(
+                minimapCam.orthographicSize, minOrthoSize * 15f, smoothSpeed * Time.deltaTime);
+            return;
+        }
+
+        if (!isVisible) return;
 
         List<StarComponent> stars = manager.GetStars();
 
@@ -253,18 +276,6 @@ public class Minimap : MonoBehaviour
         if (stars == null || stars.Count == 0)
         {
             if (infoText != null) infoText.text = "Stars: 0  |  Planets: 0";
-
-            // A bússola atualiza sempre, mesmo sem objetos na cena
-            if (compassImage != null && mainCamera != null)
-            {
-                Vector3 camForward = mainCamera.transform.forward;
-                camForward.y = 0f;
-                if (camForward.sqrMagnitude > 0.001f)
-                {
-                    float angle = Mathf.Atan2(camForward.x, camForward.z) * Mathf.Rad2Deg;
-                    compassImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -angle);
-                }
-            }
             return;
         }
 
@@ -278,11 +289,19 @@ public class Minimap : MonoBehaviour
                 new Vector2(barycenter.x, barycenter.z));
             if (d > maxDist) maxDist = d;
         }
+        // Calcula o centro do minimap (ponto médio entre baricentro e câmara)
+        // para garantir que o indicador verde fica sempre dentro do zoom
+        Vector3 camXZ    = mainCamera != null
+            ? new Vector3(mainCamera.transform.position.x, 0f, mainCamera.transform.position.z)
+            : Vector3.zero;
+        Vector3 baryXZ   = new Vector3(barycenter.x, 0f, barycenter.z);
+        Vector3 centerXZ = (camXZ + baryXZ) * 0.5f;
+
         if (mainCamera != null)
         {
             float dCam = Vector2.Distance(
                 new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.z),
-                new Vector2(barycenter.x, barycenter.z));
+                new Vector2(centerXZ.x, centerXZ.z));
             maxDist = Mathf.Max(maxDist, dCam);
         }
 
@@ -304,35 +323,15 @@ public class Minimap : MonoBehaviour
                     mainCamera.transform.position.y, worldPos.z);
         }
 
-        // Move câmara do minimap suavemente
-        Vector3 targetPos = new Vector3(barycenter.x, minimapHeight, barycenter.z);
+        // Move câmara do minimap suavemente para o centro entre baricentro e câmara
+        Vector3 targetPos  = new Vector3(centerXZ.x, minimapHeight, centerXZ.z);
         minimapCam.transform.position = Vector3.Lerp(
             minimapCam.transform.position, targetPos, smoothSpeed * Time.deltaTime);
         minimapCam.orthographicSize = Mathf.Lerp(
             minimapCam.orthographicSize, desiredSize, smoothSpeed * Time.deltaTime);
 
-        // Posiciona marcadores
+        // Baricentro
         float y = minimapHeight - 1f;
-        if (camIndicator != null && mainCamera != null)
-        {
-            // Círculo verde segue a posição da câmara no mundo
-            Vector3 cp = mainCamera.transform.position;
-            camIndicator.position = new Vector3(cp.x, y, cp.z);
-            float s = minimapCam.orthographicSize * 0.05f;
-            camIndicator.localScale = Vector3.one * Mathf.Max(s, camDotSize);
-        }
-
-        // Bússola UI — roda com a direção horizontal da câmara, fica sempre no canto superior esquerdo
-        if (compassImage != null && mainCamera != null)
-        {
-            Vector3 camForward = mainCamera.transform.forward;
-            camForward.y = 0f;
-            if (camForward.sqrMagnitude > 0.001f)
-            {
-                float angle = Mathf.Atan2(camForward.x, camForward.z) * Mathf.Rad2Deg;
-                compassImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -angle);
-            }
-        }
         if (barycenterMarker != null)
         {
             barycenterMarker.position = new Vector3(barycenter.x, y, barycenter.z);
@@ -343,6 +342,45 @@ public class Minimap : MonoBehaviour
 
         // Atualiza textos de UI
         UpdateOverlayUI(starCount, planetCount, desiredSize);
+    }
+
+    // Roda a rosa dos ventos com a direção horizontal da câmara
+    // Extraído do LateUpdate para correr sempre — mesmo sem manager (cena de Relatividade)
+    void UpdateCompass()
+    {
+        if (compassImage == null || mainCamera == null) return;
+
+        Vector3 camForward = mainCamera.transform.forward;
+        camForward.y = 0f;
+        if (camForward.sqrMagnitude > 0.001f)
+        {
+            float angle = Mathf.Atan2(camForward.x, camForward.z) * Mathf.Rad2Deg;
+            compassImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -angle);
+
+            // Roda também as labels para se manterem sempre verticais
+            if (windRoseLabels != null)
+                foreach (var lbl in windRoseLabels)
+                    if (lbl != null)
+                        lbl.rectTransform.localRotation = Quaternion.Euler(0f, 0f, angle);
+        }
+    }
+
+    // Atualiza o indicador verde da câmara no minimap
+    // Extraído do LateUpdate para correr sempre — mesmo sem manager (cena de Relatividade)
+    void UpdateCamIndicator()
+    {
+        if (camIndicator == null || mainCamera == null || minimapCam == null) return;
+
+        // Afastado o suficiente do near clip plane da câmara do minimap
+        float   y  = minimapHeight - 5f;
+        Vector3 cp = mainCamera.transform.position;
+        camIndicator.position = new Vector3(cp.x, y, cp.z);
+
+        // Tamanho proporcional ao zoom do minimap
+        // Usa um mínimo generoso para garantir visibilidade mesmo quando o zoom está a arrancar
+        float s       = minimapCam.orthographicSize * 0.05f;
+        float minSize = Mathf.Max(camDotSize, minimapCam.orthographicSize * 0.03f);
+        camIndicator.localScale = Vector3.one * Mathf.Max(s, minSize);
     }
 
     void UpdateOverlayUI(int starCount, int planetCount, float orthoSize)
