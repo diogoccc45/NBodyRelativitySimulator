@@ -26,10 +26,17 @@ public class RelativityManager : MonoBehaviour
     public GameObject heavyBodyPrefab;
     [Tooltip("Prefab da massa leve (planeta) — desliza pela curvatura")]
     public GameObject lightBodyPrefab;
+    [Tooltip("Prefab do buraco negro — massa extrema com horizonte de eventos e disco de acreção")]
+    public GameObject blackHolePrefab;
 
     [Header("Configuração das Massas")]
     public float heavyBodyMass = 200f;
     public float lightBodyMass = 5f;
+    public float blackHoleMass = 800f;
+
+    // Modo atual — Estrela, Planeta ou Buraco Negro
+    private enum PlacementMode { Heavy, Light, BlackHole }
+    private PlacementMode currentMode = PlacementMode.Heavy;
 
     [Header("UI")]
     [Tooltip("Slider para ajustar a massa da estrela")]
@@ -43,7 +50,6 @@ public class RelativityManager : MonoBehaviour
     public float placementPlaneY = 0f;
 
     // Estado interno
-    private bool isHeavyMode = true;
     private RelativityBody draggedBody = null;
     private Vector3 dragOffset = Vector3.zero;
     private Vector3 lastDragPos = Vector3.zero;
@@ -171,7 +177,9 @@ public class RelativityManager : MonoBehaviour
     // Coloca um novo corpo na posição dada
     void PlaceBody(Vector3 worldPos)
     {
-        GameObject prefab = isHeavyMode ? heavyBodyPrefab : lightBodyPrefab;
+        GameObject prefab = currentMode == PlacementMode.Heavy ? heavyBodyPrefab
+                          : currentMode == PlacementMode.BlackHole ? blackHolePrefab
+                          : lightBodyPrefab;
         if (prefab == null) return;
 
         GameObject obj = Instantiate(prefab, worldPos, Quaternion.identity);
@@ -182,21 +190,28 @@ public class RelativityManager : MonoBehaviour
 
         body.grid = grid;
         body.timeline = timeline;
-        body.deformsGrid = isHeavyMode;
-        body.mass = isHeavyMode ? heavyBodyMass : lightBodyMass;
-        // Massas leves começam sem velocidade — o utilizador dá-lhes velocidade arrastando-as
 
-        // Nome automático
-        obj.name = isHeavyMode
-            ? $"HeavyMass #{++heavyCounter}"
-            : $"LightMass #{++lightCounter}";
+        if (currentMode == PlacementMode.BlackHole)
+        {
+            body.deformsGrid = true;
+            body.mass = blackHoleMass;
+            obj.name = "BlackHole";
+        }
+        else
+        {
+            body.deformsGrid = currentMode == PlacementMode.Heavy;
+            body.mass = currentMode == PlacementMode.Heavy ? heavyBodyMass : lightBodyMass;
+            obj.name = currentMode == PlacementMode.Heavy
+                ? $"HeavyMass #{++heavyCounter}"
+                : $"LightMass #{++lightCounter}";
+        }
 
         // Atualiza a aparência se tiver StarComponent (reutiliza prefabs do laboratório)
         StarComponent sc = obj.GetComponent<StarComponent>();
         if (sc != null)
         {
             sc.mass = body.mass;
-            sc.isPlanet = !isHeavyMode;
+            sc.isPlanet = currentMode == PlacementMode.Light;
             sc.velocity = Vector3.zero; // sem física N-body nesta cena
             sc.UpdateAppearance();
 
@@ -276,7 +291,7 @@ public class RelativityManager : MonoBehaviour
     // Chamado pelo botão "Estrela" na UI
     public void SetHeavyMode()
     {
-        isHeavyMode = true;
+        currentMode = PlacementMode.Heavy;
         if (massSlider != null)
         {
             massSlider.minValue = 50f;
@@ -289,7 +304,7 @@ public class RelativityManager : MonoBehaviour
     // Chamado pelo botão "Planeta" na UI
     public void SetLightMode()
     {
-        isHeavyMode = false;
+        currentMode = PlacementMode.Light;
         if (massSlider != null)
         {
             massSlider.minValue = 1f;
@@ -299,25 +314,41 @@ public class RelativityManager : MonoBehaviour
         UpdateModeUI();
     }
 
+    // Chamado pelo botão "Buraco Negro" na UI
+    public void SetBlackHoleMode()
+    {
+        currentMode = PlacementMode.BlackHole;
+        UpdateModeUI();
+    }
+
     void OnMassSliderChanged(float value)
     {
-        if (isHeavyMode) heavyBodyMass = value;
-        else lightBodyMass = value;
+        if (currentMode == PlacementMode.Heavy) heavyBodyMass = value;
+        else if (currentMode == PlacementMode.Light) lightBodyMass = value;
     }
 
     void UpdateModeUI()
     {
+        // Esconde o slider no modo buraco negro — massa é fixa
+        if (massSlider != null)
+            massSlider.gameObject.SetActive(currentMode != PlacementMode.BlackHole);
+
         if (modeText != null)
-            modeText.text = isHeavyMode ? "Modo: Estrela" : "Modo: Planeta";
+            modeText.text = currentMode == PlacementMode.Heavy ? "Modo: Estrela"
+                          : currentMode == PlacementMode.BlackHole ? "Modo: Buraco Negro"
+                          : "Modo: Planeta";
     }
 
     void UpdateMassText()
     {
         if (massText == null || massSlider == null) return;
 
-        if (isHeavyMode)
+        if (currentMode == PlacementMode.BlackHole)
         {
-            // Converte para massas solares (mesmo fator do laboratório)
+            massText.text = $"Massa: Buraco Negro";
+        }
+        else if (currentMode == PlacementMode.Heavy)
+        {
             float solar = massSlider.value * 0.004f;
             massText.text = $"Massa: {solar:F2} M_sun";
         }

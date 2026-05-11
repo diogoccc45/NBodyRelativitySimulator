@@ -131,12 +131,17 @@ public class SpacetimeGrid : MonoBehaviour
 
         for (int i = 0; i < baseVertices.Length; i++)
         {
-            Vector3 basePos = baseVertices[i];
+            Vector3 basePos    = baseVertices[i];
             float totalDeform  = 0f;
 
             foreach (RelativityBody body in bodies)
             {
                 if (body == null || !body.deformsGrid) continue;
+
+                // Usa valores personalizados do corpo se existirem, senão usa os globais
+                float bRadius = body.overrideDeformation ? body.customDeformRadius : deformRadius;
+                float bStrength= body.overrideDeformation ? body.customDeformStrength : deformStrength;
+                float bFalloff = body.overrideDeformation ? body.customDeformFalloff : deformFalloff;
 
                 // Distância horizontal (XZ) entre o vértice e a massa
                 float dx = basePos.x - body.transform.position.x;
@@ -144,15 +149,15 @@ public class SpacetimeGrid : MonoBehaviour
                 float dist = Mathf.Sqrt(dx * dx + dz * dz);
 
                 // Fora do raio de influência — sem deformação
-                if (dist > deformRadius) continue;
+                if (dist > bRadius) continue;
 
                 // Curva de deformação: 1 no centro, 0 na borda do raio
-                float tVal = 1f - Mathf.Clamp01(dist / deformRadius);
-                float curve = Mathf.Pow(tVal, deformFalloff);
+                float tVal = 1f - Mathf.Clamp01(dist / bRadius);
+                float curve = Mathf.Pow(tVal, bFalloff);
 
                 // Normaliza pela massa de referência — massas maiores afundam mais
                 float massRatio = Mathf.Clamp(body.mass / referenceMass, 0f, 2f);
-                totalDeform += curve * deformStrength * massRatio;
+                totalDeform += curve * bStrength * massRatio;
             }
 
             // Aplica a deformação no eixo Y (para baixo)

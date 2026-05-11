@@ -10,6 +10,13 @@ public class RelativityBody : MonoBehaviour
     [Tooltip("Se true, esta massa deforma a grid e fica fixa. Se false, desliza pela curvatura.")]
     public bool deformsGrid = true;
 
+    [Header("Deformação Personalizada")]
+    [Tooltip("Se true, usa os valores abaixo em vez dos valores globais da grid")]
+    public bool overrideDeformation = false;
+    public float customDeformStrength = 15f;
+    public float customDeformRadius = 45f;
+    public float customDeformFalloff = 3.5f;
+
     [Header("Referências")]
     public SpacetimeGrid grid;
     // Referência ao timeline — preenchida automaticamente pelo RelativityManager
@@ -67,7 +74,7 @@ public class RelativityBody : MonoBehaviour
     {
         if (grid == null) return;
         float gridY = grid.GetGridHeightAt(transform.position.x, transform.position.z);
-        // Senta o objeto ligeiramente acima da grid para não intersetar a mesh
+        // Senta o objeto ligeiramente acima da grid para não intersectar a mesh
         transform.position = new Vector3(transform.position.x, gridY + GetRadius(), transform.position.z);
     }
 
@@ -114,7 +121,7 @@ public class RelativityBody : MonoBehaviour
         SnapToGrid();
     }
 
-    // Raio do objeto — usado para sentar o objeto acima da grid sem intersectar
+    // Raio do objeto — usado para sentar o objeto acima da grid sem intersetar
     float GetRadius()
     {
         return transform.localScale.x * 0.5f;
