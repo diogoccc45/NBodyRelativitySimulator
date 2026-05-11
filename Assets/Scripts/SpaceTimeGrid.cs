@@ -23,6 +23,9 @@ public class SpacetimeGrid : MonoBehaviour
     [Header("Visual")]
     public Material gridMaterial;
 
+    [Header("Ondas Gravitacionais")]
+    public GravitationalWaves waves;
+
     // Lista de massas que deformam a grid — gerida pelo RelativityManager
     private List<RelativityBody> bodies = new List<RelativityBody>();
 
@@ -152,7 +155,7 @@ public class SpacetimeGrid : MonoBehaviour
                 if (dist > bRadius) continue;
 
                 // Curva de deformação: 1 no centro, 0 na borda do raio
-                float tVal = 1f - Mathf.Clamp01(dist / bRadius);
+                float tVal  = 1f - Mathf.Clamp01(dist / bRadius);
                 float curve = Mathf.Pow(tVal, bFalloff);
 
                 // Normaliza pela massa de referência — massas maiores afundam mais
@@ -161,7 +164,9 @@ public class SpacetimeGrid : MonoBehaviour
             }
 
             // Aplica a deformação no eixo Y (para baixo)
-            vertices[i] = new Vector3(basePos.x, -totalDeform, basePos.z);
+            // Adiciona a deformação das ondas gravitacionais se existirem
+            float waveDeform = (waves != null) ? waves.GetWaveDeformAt(basePos.x, basePos.z) : 0f;
+            vertices[i] = new Vector3(basePos.x, -(totalDeform + waveDeform), basePos.z);
         }
 
         mesh.vertices = vertices;

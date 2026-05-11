@@ -14,6 +14,7 @@ public class RelativityManager : MonoBehaviour
     public Camera mainCamera;
     public RelativityTimeline timeline;
     public RelativityTrajectory trajectoryPreview;
+    public GravitationalWaves gravitationalWaves;
 
     [Header("Amortecimento nas Bordas")]
     [Tooltip("Zona de amortecimento progressivo — distância da borda onde começa a abrandar")]
@@ -162,6 +163,11 @@ public class RelativityManager : MonoBehaviour
         {
             if (trajectoryPreview != null) trajectoryPreview.Hide();
             draggedBody.EndDrag(dragVelocity);
+
+            // Dispara onda gravitacional ao largar a massa após drag
+            if (gravitationalWaves != null)
+                gravitationalWaves.SpawnWave(draggedBody.transform.position, draggedBody.mass);
+
             draggedBody = null;
         }
 
@@ -177,7 +183,7 @@ public class RelativityManager : MonoBehaviour
     // Coloca um novo corpo na posição dada
     void PlaceBody(Vector3 worldPos)
     {
-        GameObject prefab = currentMode == PlacementMode.Heavy ? heavyBodyPrefab
+        GameObject prefab = currentMode == PlacementMode.Heavy     ? heavyBodyPrefab
                           : currentMode == PlacementMode.BlackHole ? blackHolePrefab
                           : lightBodyPrefab;
         if (prefab == null) return;
@@ -195,6 +201,10 @@ public class RelativityManager : MonoBehaviour
         {
             body.deformsGrid = true;
             body.mass = blackHoleMass;
+            body.overrideDeformation = true;
+            body.customDeformStrength = 80f;
+            body.customDeformRadius = 50f;
+            body.customDeformFalloff  = 3.5f;
             obj.name = "BlackHole";
         }
         else
@@ -206,7 +216,9 @@ public class RelativityManager : MonoBehaviour
                 : $"LightMass #{++lightCounter}";
         }
 
-        // Atualiza a aparência se tiver StarComponent (reutiliza prefabs do laboratório)
+        // Dispara onda gravitacional ao colocar a massa
+        if (gravitationalWaves != null)
+            gravitationalWaves.SpawnWave(worldPos, body.mass);
         StarComponent sc = obj.GetComponent<StarComponent>();
         if (sc != null)
         {
@@ -323,7 +335,7 @@ public class RelativityManager : MonoBehaviour
 
     void OnMassSliderChanged(float value)
     {
-        if (currentMode == PlacementMode.Heavy) heavyBodyMass = value;
+        if (currentMode == PlacementMode.Heavy)      heavyBodyMass = value;
         else if (currentMode == PlacementMode.Light) lightBodyMass = value;
     }
 
@@ -359,15 +371,78 @@ public class RelativityManager : MonoBehaviour
         }
     }
 
-    // Remove todas as massas da cena — botão Reset
+    // Remove todas as massas da cena com animação suave
+    // Cada massa dispara uma onda gravitacional final e encolhe antes de desaparecer
     public void ResetScene()
     {
-        for (int i = transform.childCount - 1; i >= 0; i--)
-            Destroy(transform.GetChild(i).gameObject);
+        StartCoroutine(SoftReset());
+    }
 
-        heavyCounter = 0;
-        lightCounter  = 0;
+    System.Collections.IEnumerator SoftReset()
+    {
+        // Bloqueia input durante o reset
         draggedBody = null;
+        if (trajectoryPreview != null) trajectoryPreview.Hide();
+
+        // Recolhe todos os corpos antes de começar a destruir
+        var bodies = new System.Collections.Generic.List<RelativityBody>();
+        foreach (Transform child in transform)
+        {
+            RelativityBody b = child.GetComponent<RelativityBody>();
+            if (b != null) bodies.Add(b);
+        }
+
+        // Dispara uma onda gravitacional final para cada massa — com delay escalonado
+        // para as ondas não se sobreporem todas ao mesmo tempo
+        for (int i = 0; i < bodies.Count; i++)
+        {
+            if (bodies[i] == null) continue;
+            if (gravitationalWaves != null)
+                gravitationalWaves.SpawnWave(bodies[i].transform.position, bodies[i].mass * 0.5f);
+            yield return new WaitForSeconds(0.08f); // pequeno delay entre cada onda
+        }
+
+        // Aguarda um momento para as ondas começarem a propagar
+        yield return new WaitForSeconds(0.4f);
+
+        // Encolhe e destrói cada corpo gradualmente
+        float shrinkDuration = 0.6f;
+        var shrinkCoroutines = new System.Collections.Generic.List<System.Collections.IEnumerator>();
+
+        foreach (RelativityBody b in bodies)
+        {
+            if (b != null)
+                StartCoroutine(ShrinkAndDestroy(b.gameObject, shrinkDuration));
+        }
+
+        // Aguarda o fim das animações de encolhimento
+        yield return new WaitForSeconds(shrinkDuration + 0.1f);
+
+        // Reset dos contadores
+        heavyCounter = 0;
+        lightCounter = 0;
+    }
+
+    // Encolhe o objeto suavemente antes de o destruir
+    System.Collections.IEnumerator ShrinkAndDestroy(GameObject obj, float duration)
+    {
+        if (obj == null) yield break;
+
+        Vector3 startScale = obj.transform.localScale;
+        float   elapsed    = 0f;
+
+        while (elapsed < duration)
+        {
+            if (obj == null) yield break;
+            elapsed += Time.deltaTime;
+            float t  = Mathf.Clamp01(elapsed / duration);
+            // Ease in cubic — encolhe devagar no início e rápido no fim
+            float ease = t * t * t;
+            obj.transform.localScale = Vector3.Lerp(startScale, Vector3.zero, ease);
+            yield return null;
+        }
+
+        if (obj != null) Destroy(obj);
     }
 
     // Calcula e aplica velocidade orbital ao planeta leve em relação à estrela mais próxima
