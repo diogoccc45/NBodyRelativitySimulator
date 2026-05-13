@@ -120,6 +120,9 @@ public class SpacetimeGrid : MonoBehaviour
         bodies.Remove(body);
     }
 
+    // MeshCollider atualizado com a deformação — permite raycast preciso contra a grid
+    private MeshCollider meshCollider;
+
     void LateUpdate()
     {
         if (mesh == null) return;
@@ -139,27 +142,31 @@ public class SpacetimeGrid : MonoBehaviour
 
             foreach (RelativityBody body in bodies)
             {
-                if (body == null || !body.deformsGrid) continue;
+                if (body == null) continue;
 
-                // Usa valores personalizados do corpo se existirem, senão usa os globais
+                // Massas leves podem deformar a grid ligeiramente se configurado
+                bool canDeform = body.deformsGrid ||
+                                 (!body.deformsGrid && body.lightBodyDeformsGrid);
+                if (!canDeform) continue;
+
                 float bRadius = body.overrideDeformation ? body.customDeformRadius : deformRadius;
                 float bStrength= body.overrideDeformation ? body.customDeformStrength : deformStrength;
                 float bFalloff = body.overrideDeformation ? body.customDeformFalloff : deformFalloff;
 
-                // Distância horizontal (XZ) entre o vértice e a massa
+                // Massas leves usam uma fração da massa para não afundar a grid
+                float effectiveMass = body.deformsGrid
+                    ? body.mass
+                    : body.mass * body.lightDeformMassFraction;
+
                 float dx = basePos.x - body.transform.position.x;
                 float dz = basePos.z - body.transform.position.z;
                 float dist = Mathf.Sqrt(dx * dx + dz * dz);
 
-                // Fora do raio de influência — sem deformação
                 if (dist > bRadius) continue;
 
-                // Curva de deformação: 1 no centro, 0 na borda do raio
-                float tVal  = 1f - Mathf.Clamp01(dist / bRadius);
+                float tVal = 1f - Mathf.Clamp01(dist / bRadius);
                 float curve = Mathf.Pow(tVal, bFalloff);
-
-                // Normaliza pela massa de referência — massas maiores afundam mais
-                float massRatio = Mathf.Clamp(body.mass / referenceMass, 0f, 2f);
+                float massRatio = Mathf.Clamp(effectiveMass / referenceMass, 0f, 2f);
                 totalDeform += curve * bStrength * massRatio;
             }
 
@@ -171,6 +178,10 @@ public class SpacetimeGrid : MonoBehaviour
 
         mesh.vertices = vertices;
         mesh.RecalculateNormals(); // necessário para o lighting reagir à curvatura
+
+        // Atualiza o MeshCollider com a mesh deformada — permite raycast preciso
+        if (meshCollider == null) meshCollider = GetComponent<MeshCollider>();
+        if (meshCollider != null) meshCollider.sharedMesh = mesh;
     }
 
     // Devolve a posição Y da grid num ponto XZ qualquer — usado pelo RelativityBody para manter as massas leves "coladas" à superfície da grid

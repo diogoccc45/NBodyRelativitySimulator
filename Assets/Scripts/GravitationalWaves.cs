@@ -24,9 +24,10 @@ public class GravitationalWaves : MonoBehaviour
     // Estrutura de uma onda em propagação
     private struct Wave
     {
-        public Vector3 origin;    // ponto de origem no plano XZ
-        public float   startTime; // quando começou
-        public float   mass;      // massa que gerou a onda — afeta a amplitude
+        public Vector3 origin;
+        public float startTime;
+        public float mass;
+        public bool isShockwave; // shockwaves são mais rápidas e agressivas
     }
 
     private List<Wave> activeWaves = new List<Wave>();
@@ -34,20 +35,33 @@ public class GravitationalWaves : MonoBehaviour
     // Chamado pelo RelativityManager quando uma massa é colocada ou largada após drag
     public void SpawnWave(Vector3 worldPos, float mass)
     {
-        // Limita o número de ondas simultâneas
         if (activeWaves.Count >= maxWaves)
             activeWaves.RemoveAt(0);
 
         activeWaves.Add(new Wave
         {
-            origin    = new Vector3(worldPos.x, 0f, worldPos.z),
+            origin = new Vector3(worldPos.x, 0f, worldPos.z),
             startTime = Time.time,
-            mass      = mass
+            mass = mass,
+            isShockwave = false
+        });
+    }
+
+    // Shockwave de absorção — muito mais rápida e agressiva que uma onda normal
+    // Disparada no momento de absorção pelo buraco negro
+    public void SpawnShockwave(Vector3 worldPos, float mass)
+    {
+        // Shockwaves ignoram o limite máximo — são eventos únicos importantes
+        activeWaves.Add(new Wave
+        {
+            origin = new Vector3(worldPos.x, 0f, worldPos.z),
+            startTime = Time.time,
+            mass = mass * 5f, // amplitude muito maior
+            isShockwave = true
         });
     }
 
     // Devolve a deformação adicional causada pelas ondas num ponto XZ
-    // Chamado pelo SpacetimeGrid.DeformGrid() para cada vértice
     public float GetWaveDeformAt(float worldX, float worldZ)
     {
         if (activeWaves.Count == 0) return 0f;
@@ -57,42 +71,33 @@ public class GravitationalWaves : MonoBehaviour
 
         for (int i = activeWaves.Count - 1; i >= 0; i--)
         {
-            Wave w       = activeWaves[i];
+            Wave w = activeWaves[i];
             float elapsed = currentTime - w.startTime;
 
-            // Remove ondas expiradas
-            if (elapsed > waveDuration)
+            // Shockwaves são 3x mais rápidas e duram menos
+            float duration = w.isShockwave ? waveDuration * 0.4f : waveDuration;
+            float speed = w.isShockwave ? waveSpeed * 3f : waveSpeed;
+            float width = w.isShockwave ? waveWidth * 0.5f : waveWidth;
+
+            if (elapsed > duration)
             {
                 activeWaves.RemoveAt(i);
                 continue;
             }
 
-            // Raio atual da frente de onda
-            float waveRadius = elapsed * waveSpeed;
-
-            // Distância deste vértice à origem da onda
-            float dx   = worldX - w.origin.x;
-            float dz   = worldZ - w.origin.z;
+            float waveRadius  = elapsed * speed;
+            float dx = worldX - w.origin.x;
+            float dz = worldZ - w.origin.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
-
-            // Distância da frente de onda a este vértice
             float distToFront = dist - waveRadius;
 
-            // Só afeta vértices perto da frente de onda
-            if (Mathf.Abs(distToFront) > waveWidth) continue;
+            if (Mathf.Abs(distToFront) > width) continue;
 
-            // Forma da onda — gaussiana centrada na frente de onda
-            float waveShape = Mathf.Exp(-(distToFront * distToFront) / (waveWidth * waveWidth * 0.5f));
-
-            // Fade out ao longo do tempo — onda perde energia ao propagar
-            float timeFade = 1f - Mathf.Clamp01(elapsed / waveDuration);
-            timeFade = timeFade * timeFade; // quadrático — cai rapidamente no fim
-
-            // Fade out com a distância — onda perde energia ao afastar
-            float distFade = Mathf.Clamp01(1f - dist / (waveSpeed * waveDuration));
-
-            // Amplitude modulada pela massa — massas maiores geram ondas maiores
-            float massScale = Mathf.Clamp(w.mass / 200f, 0.2f, 3f);
+            float waveShape = Mathf.Exp(-(distToFront * distToFront) / (width * width * 0.5f));
+            float timeFade = 1f - Mathf.Clamp01(elapsed / duration);
+            timeFade = timeFade * timeFade;
+            float distFade  = Mathf.Clamp01(1f - dist / (speed * duration));
+            float massScale = Mathf.Clamp(w.mass / 200f, 0.2f, 6f);
 
             totalDeform += waveShape * timeFade * distFade * waveAmplitude * massScale;
         }

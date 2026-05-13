@@ -10,7 +10,11 @@ public class RelativityBody : MonoBehaviour
     [Tooltip("Se true, esta massa deforma a grid e fica fixa. Se false, desliza pela curvatura.")]
     public bool deformsGrid = true;
 
-    [Header("Deformação Personalizada")]
+    [Header("Deformação da Grid (massas leves)")]
+    [Tooltip("Se true, planetas leves também deformam a grid ligeiramente")]
+    public bool lightBodyDeformsGrid = true;
+    [Tooltip("Fração da massa usada para deformação — evita que planetas afundem a grid como estrelas")]
+    public float lightDeformMassFraction = 0.05f;
     [Tooltip("Se true, usa os valores abaixo em vez dos valores globais da grid")]
     public bool overrideDeformation = false;
     public float customDeformStrength = 15f;
@@ -121,7 +125,7 @@ public class RelativityBody : MonoBehaviour
         SnapToGrid();
     }
 
-    // Raio do objeto — usado para sentar o objeto acima da grid sem intersetar
+    // Raio do objeto — usado para sentar o objeto acima da grid sem intersectar
     float GetRadius()
     {
         return transform.localScale.x * 0.5f;

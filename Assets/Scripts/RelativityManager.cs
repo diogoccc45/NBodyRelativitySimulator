@@ -206,6 +206,10 @@ public class RelativityManager : MonoBehaviour
             body.customDeformRadius = 50f;
             body.customDeformFalloff  = 3.5f;
             obj.name = "BlackHole";
+
+            // Liga o GravitationalWaves ao BlackHoleBody para a absorção disparar ondas
+            BlackHoleBody bhb = obj.GetComponent<BlackHoleBody>();
+            if (bhb != null) bhb.gravitationalWaves = gravitationalWaves;
         }
         else
         {
@@ -277,12 +281,20 @@ public class RelativityManager : MonoBehaviour
         return Vector3.zero;
     }
 
-    // Devolve a posição do rato no plano horizontal Y = placementPlaneY
+    // Devolve a posição do rato na superfície real da grid
+    // Usa Physics.Raycast contra o MeshCollider da grid — posição sempre correta
     Vector3 GetMouseWorldPos()
     {
         Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        Plane plane = new Plane(Vector3.up, new Vector3(0f, placementPlaneY, 0f));
 
+        if (Physics.Raycast(ray, out RaycastHit hit, 2000f))
+        {
+            // Acertou na grid ou noutro objeto — usa o ponto de impacto
+            return hit.point;
+        }
+
+        // Fallback — plano Y=0 se não acertar em nada
+        Plane plane = new Plane(Vector3.up, Vector3.zero);
         if (plane.Raycast(ray, out float dist))
             return ray.GetPoint(dist);
 
