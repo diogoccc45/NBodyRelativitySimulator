@@ -166,7 +166,7 @@ public class SpacetimeGrid : MonoBehaviour
 
                 float tVal = 1f - Mathf.Clamp01(dist / bRadius);
                 float curve = Mathf.Pow(tVal, bFalloff);
-                float massRatio = Mathf.Clamp(effectiveMass / referenceMass, 0f, 2f);
+                float massRatio = Mathf.Clamp(effectiveMass / referenceMass, 0f, 5f);
                 totalDeform += curve * bStrength * massRatio;
             }
 

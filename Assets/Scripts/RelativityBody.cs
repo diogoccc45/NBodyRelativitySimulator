@@ -60,9 +60,10 @@ public class RelativityBody : MonoBehaviour
         if (grid == null) return;
 
         // Massas pesadas ficam fixas — só precisam de se manter na altura da grid
+        // Durante o drag, o RelativityManager controla a posição — não forçar Y
         if (deformsGrid)
         {
-            SnapToGrid();
+            if (!isDragging) SnapToGrid();
             return;
         }
 
@@ -149,7 +150,16 @@ public class RelativityBody : MonoBehaviour
     // Move o corpo para uma posição XZ (chamado pelo RelativityManager durante o drag)
     public void MoveTo(Vector3 worldPos)
     {
-        transform.position = new Vector3(worldPos.x, transform.position.y, worldPos.z);
-        SnapToGrid();
+        if (deformsGrid)
+        {
+            // Massas pesadas seguem o rato completamente durante o drag
+            // O Y vem do GetMouseWorldPosAtHeight no RelativityManager
+            transform.position = worldPos;
+        }
+        else
+        {
+            transform.position = new Vector3(worldPos.x, transform.position.y, worldPos.z);
+            SnapToGrid();
+        }
     }
 }
