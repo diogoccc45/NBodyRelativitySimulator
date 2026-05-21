@@ -57,9 +57,10 @@ public class RelativityCollision : MonoBehaviour
                 float dz = bodies[i].transform.position.z - bodies[j].transform.position.z;
                 float dist = Mathf.Sqrt(dx * dx + dz * dz);
 
+                // Threshold baseado só no raio visual — só colide quando realmente se toca
                 float combinedRadius = (bodies[i].transform.localScale.x +
                                         bodies[j].transform.localScale.x) * 0.5f;
-                float threshold = Mathf.Max(collisionDistance, combinedRadius);
+                float threshold = combinedRadius * 0.8f;
 
                 if (dist > threshold) continue;
 

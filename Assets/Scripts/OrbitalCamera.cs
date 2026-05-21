@@ -132,4 +132,26 @@ public class OrbitalCamera : MonoBehaviour
         transform.position = focusPoint + offset;
         transform.LookAt(focusPoint);
     }
+
+    // Chamado pelo BinaryBlackHoleManager para reposicionar a câmara instantaneamente
+    // Atualiza os valores internos diretamente — sem esperar pelo LateUpdate
+    public void SetView(float newYaw, float newPitch, float newDistance)
+    {
+        targetYaw      = newYaw;
+        targetPitch    = Mathf.Clamp(newPitch, minPitch, maxPitch);
+        targetDistance = Mathf.Clamp(newDistance, minDistance, maxDistance);
+
+        // Snap imediato — sem interpolação
+        currentYaw      = targetYaw;
+        currentPitch    = targetPitch;
+        currentDistance = targetDistance;
+
+        lastInputTime = Time.time; // evita que o autoRotate interfira imediatamente
+    }
+
+    // Atualiza só o target distance suavemente — usado durante o binary mode
+    public void SetTargetDistance(float newDistance)
+    {
+        targetDistance = Mathf.Clamp(newDistance, minDistance, maxDistance);
+    }
 }

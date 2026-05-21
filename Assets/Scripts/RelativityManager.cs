@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 
 // Gere a colocação, arrasto e remoção de massas na grid de espaço-tempo
@@ -52,6 +53,7 @@ public class RelativityManager : MonoBehaviour
 
     // Estado interno
     private RelativityBody draggedBody = null;
+    private bool inputBlocked = false; // bloqueado por UI (slider, botão) — gerido por SetInputBlocked
     private Vector3 dragOffset = Vector3.zero;
     private Vector3 lastDragPos = Vector3.zero;
     private Vector3 dragVelocity = Vector3.zero;
@@ -102,6 +104,25 @@ public class RelativityManager : MonoBehaviour
 
     void HandleInput()
     {
+        // Bloqueado por SliderInputBlocker ou outro elemento de UI
+        if (inputBlocked) return;
+
+        // Bloqueia cliques quando o rato está sobre qualquer elemento de UI
+        // (botões, painéis, sliders, etc.) — usa o layer UI para detetar tudo de uma vez
+        if (Mouse.current.leftButton.wasPressedThisFrame && EventSystem.current != null)
+        {
+            var ped = new UnityEngine.EventSystems.PointerEventData(EventSystem.current)
+                { position = Mouse.current.position.ReadValue() };
+            var hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            EventSystem.current.RaycastAll(ped, hits);
+            foreach (var hit in hits)
+            {
+                // Bloqueia se acertar em qualquer objeto no layer UI
+                if (hit.gameObject.layer == LayerMask.NameToLayer("UI"))
+                    return;
+            }
+        }
+
         //Clique esquerdo
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
@@ -480,6 +501,9 @@ public class RelativityManager : MonoBehaviour
         Vector3 tangent = Vector3.Cross(Vector3.up, toHeavy.normalized).normalized;
         lightBody.EndDrag(tangent * speed);
     }
+
+    // Chamado pelo SliderInputBlocker para bloquear/desbloquear o input da grid
+    public void SetInputBlocked(bool blocked) => inputBlocked = blocked;
 
     // Devolve a massa pesada mais próxima de uma posição
     RelativityBody GetNearestHeavyBody(Vector3 position)

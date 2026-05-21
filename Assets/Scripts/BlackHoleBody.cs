@@ -98,13 +98,15 @@ public class BlackHoleBody : MonoBehaviour
     {
         if (body == null || body.grid == null) return;
 
+        // Durante o scattering binário não absorve nada — o BinaryBlackHoleManager gere tudo
+        if (!body.enabled) return;
+
         RelativityBody[] allBodies = FindObjectsByType<RelativityBody>(FindObjectsSortMode.None);
         foreach (RelativityBody other in allBodies)
         {
             if (other == body || other.deformsGrid) continue;
             if (absorbing.Contains(other)) continue;
 
-            // Usa distância XZ — evita que o planeta tenha de descer ao fundo do fosso
             float dx = transform.position.x - other.transform.position.x;
             float dz = transform.position.z - other.transform.position.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
@@ -132,7 +134,7 @@ public class BlackHoleBody : MonoBehaviour
         Vector3  startScale = other.transform.localScale;
         Color startColor = rend != null ? rend.material.color : Color.white;
 
-        // Fase 1: Espiral acelerada
+        // Fase 1: Espiral acelerada 
         float spiralDuration = 2.5f;
         float elapsed = 0f;
 
@@ -212,7 +214,7 @@ public class BlackHoleBody : MonoBehaviour
             float ease = 1f - Mathf.Pow(1f - t, 2f);
 
             float jetLength = Mathf.Lerp(0f, maxJetLength, ease);
-            float jetAlpha = t < 0.5f ? 1f : Mathf.Lerp(1f, 0f, (t - 0.5f) / 0.5f);
+            float jetAlpha  = t < 0.5f ? 1f : Mathf.Lerp(1f, 0f, (t - 0.5f) / 0.5f);
 
             if (jetUp != null) UpdateJet(jetUp,   jetOrigin,  Vector3.up,  jetLength, jetAlpha);
             if (jetDown != null) UpdateJet(jetDown,  jetOrigin, -Vector3.up, jetLength, jetAlpha);

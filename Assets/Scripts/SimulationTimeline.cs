@@ -38,7 +38,6 @@ public class SimulationTimeline : MonoBehaviour
     List<FrameSnapshot> history = new List<FrameSnapshot>();
     float recordTimer = 0f;
     bool isPaused = false;
-    bool isRewinding = false;
     int replayIndex = -1; // -1 = live
     float rewindTimer = 0f;
 
