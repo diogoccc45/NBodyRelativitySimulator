@@ -336,7 +336,7 @@ public class SettingsPanel : MonoBehaviour
                 else anyWillBounce = true;
 
                 float existingMassEarth = planets[i].mass * 0.333f;
-                string icon = frags ? "<color=#00ff88>✓ FRAGMENT</color>"
+                string icon = frags ? "<color=#00ff88>OK FRAGMENT</color>"
                                     : "<color=#ff8800>[!] BOUNCE</color>";
 
                 sb.AppendLine($"  vs {planets[i].gameObject.name} ({existingMassEarth:F1} M_Earth)" +
@@ -371,7 +371,7 @@ public class SettingsPanel : MonoBehaviour
                     // Converte massas internas para M_Earth para exibição
                     float massA = planets[i].mass * 0.333f;
                     float massB = planets[j].mass * 0.333f;
-                    string icon = frags ? "<color=#00ff88>✓ FRAGMENT</color>"
+                    string icon = frags ? "<color=#00ff88>OK FRAGMENT</color>"
                                         : "<color=#ff8800>[!] BOUNCE</color>";
 
                     sb.AppendLine($"  {planets[i].gameObject.name} ({massA:F1} M_Earth)" +

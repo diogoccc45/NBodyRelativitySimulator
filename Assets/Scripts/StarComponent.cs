@@ -14,9 +14,13 @@ public class StarComponent : MonoBehaviour
 
     void Awake()
     {
-        // Pega no Prefab
         starRenderer = GetComponent<Renderer>();
-        starTrail = GetComponent<TrailRenderer>();
+        starTrail    = GetComponent<TrailRenderer>();
+
+        // Em build URP, keywords não são serializados na instância do material —
+        // forçar _EMISSION activo aqui garante que está disponível desde o primeiro frame
+        if (starRenderer != null)
+            starRenderer.material.EnableKeyword("_EMISSION");
     }
 
     // Esta função será chamada sempre que a massa mudar
@@ -70,13 +74,15 @@ public class StarComponent : MonoBehaviour
             }
         }
 
-        float scale = 0.5f + (mass / 100f);
-        
-        // Planetas: escala proporcional à massa real
-        // Terra (~3 u.i.) → 1.2,  Neptuno (~51 u.i.) → 3.0
-        // Mantém-se sempre abaixo da menor estrela (escala ~0.6)
-        if (isPlanet) scale = Mathf.Lerp(1.0f, 3.0f, Mathf.InverseLerp(0.33f, 51f, mass)); 
+        // Só protege contra zero/negativo — não limita o range normal da massa
+        float safeMass = float.IsFinite(mass) && mass > 0f ? mass : (isPlanet ? 0.33f : 10f);
 
+        float scale = isPlanet
+            ? Mathf.Lerp(1.0f, 3.0f, Mathf.InverseLerp(0.33f, 51f, safeMass))
+            : 0.5f + (safeMass / 100f);
+
+        // Barreira final — escala tem de ser finita e positiva
+        if (!float.IsFinite(scale) || scale <= 0f) scale = 0.5f;
         transform.localScale = Vector3.one * scale;
 
         // Muda a cor do Material apenas nesta instância

@@ -474,7 +474,7 @@ public class Minimap : MonoBehaviour
         // Posição: quadrante superior esquerdo dentro do círculo
         // A diagonal a 135 graus: borda está a raio*0.707 do centro
         // Ficamos a aproximadamente 32% do raio para garantir que a rosa + labels cabem dentro
-        Vector2 rosePos = new Vector2(-mapSize * 0.17f, mapSize * 0.20f);
+        Vector2 rosePos = new Vector2(-mapSize * 0.30f, mapSize * 0.20f);
 
         // Contentor da rosa (roda em bloco)
         GameObject roseGO = new GameObject("WindRose");

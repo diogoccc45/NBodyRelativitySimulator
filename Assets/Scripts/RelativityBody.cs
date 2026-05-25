@@ -36,6 +36,8 @@ public class RelativityBody : MonoBehaviour
     public float damping = 0.999f;
 
     private Vector3 velocity;
+    // Permite ao RelativityManager definir a velocidade directamente (ex: tecla O)
+    public void SetVelocity(Vector3 v) => velocity = v;
     private bool isDragging = false; // true quando o RelativityManager está a arrastar este corpo
 
     void Start()
@@ -68,10 +70,11 @@ public class RelativityBody : MonoBehaviour
         }
 
         // Massas leves — deslizam pela curvatura se não estão a ser arrastadas nem pausadas
-        if (!isDragging && (timeline == null || !timeline.IsPaused))
-            SlideAlongGrid();
-        else
-            SnapToGrid(); // enquanto arrasta ou pausado, mantém-se colada à grid
+        if (isDragging)
+            return; // durante o drag o RelativityManager controla a posição — não interferir
+        if (timeline != null && timeline.IsPaused)
+            return; // em pausa não move nem faz snap — a posição é controlada pelo drag
+        SlideAlongGrid();
     }
 
     // Cola o objeto à superfície da grid no ponto XZ atual
@@ -143,8 +146,7 @@ public class RelativityBody : MonoBehaviour
     public void EndDrag(Vector3 releaseVelocity)
     {
         isDragging = false;
-        // Passa a velocidade do drag para o corpo — multiplicador aumentado para órbitas viáveis
-        if (!deformsGrid) velocity = releaseVelocity * 0.8f;
+        if (!deformsGrid) velocity = releaseVelocity;
     }
 
     // Move o corpo para uma posição XZ (chamado pelo RelativityManager durante o drag)
@@ -152,14 +154,13 @@ public class RelativityBody : MonoBehaviour
     {
         if (deformsGrid)
         {
-            // Massas pesadas seguem o rato completamente durante o drag
-            // O Y vem do GetMouseWorldPosAtHeight no RelativityManager
             transform.position = worldPos;
         }
         else
         {
+            // Só move XZ — não chama SnapToGrid durante o drag para não escorregar
+            // para o fundo do poço gravitacional enquanto o utilizador posiciona
             transform.position = new Vector3(worldPos.x, transform.position.y, worldPos.z);
-            SnapToGrid();
         }
     }
 }

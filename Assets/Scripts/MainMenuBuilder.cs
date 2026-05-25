@@ -27,6 +27,7 @@ public class MainMenuBuilder : MonoBehaviour
     static readonly Color TEXT_DIM   = new Color(0.50f,  0.65f,  0.85f,  1f);
 
     Canvas rootCanvas;
+    public Sprite quitIcon;   // arrasta o Lock.png aqui no Inspector
 
     void Start()
     {
@@ -102,10 +103,70 @@ public class MainMenuBuilder : MonoBehaviour
             MakeButton(center.transform, scenes[i].label, scenes[i].icon,
                        -175f - i * 96f, scenes[i].act);
 
+        // ── Botão Sair — canto inferior esquerdo ─────────────────────
+        GameObject quitBtn = MakeRect("Btn_Sair", cGO.transform);
+        RectTransform qR = quitBtn.GetComponent<RectTransform>();
+        qR.anchorMin = qR.anchorMax = new Vector2(0f, 0f);
+        qR.pivot     = new Vector2(0f, 0f);
+        qR.anchoredPosition = new Vector2(20f, 20f);
+        qR.sizeDelta = new Vector2(200, 52);
+
+        Image qBg = quitBtn.AddComponent<Image>();
+        qBg.color = BTN_NORMAL;
+
+        // Borda esquerda
+        GameObject qBord = MakeRect("Bar", quitBtn.transform);
+        Image qBI = qBord.AddComponent<Image>();
+        qBI.color = ACCENT;
+        RectTransform qBdR = qBord.GetComponent<RectTransform>();
+        qBdR.anchorMin = Vector2.zero; qBdR.anchorMax = new Vector2(0,1);
+        qBdR.pivot = new Vector2(0,0.5f);
+        qBdR.anchoredPosition = Vector2.zero;
+        qBdR.sizeDelta = new Vector2(4,0);
+
+        // Ícone
+        GameObject qIc = MakeRect("Icon", quitBtn.transform);
+        Image qIcImg = qIc.AddComponent<Image>();
+        if (quitIcon != null)
+        {
+            qIcImg.sprite = quitIcon;
+            qIcImg.preserveAspect = true;
+            qIcImg.color = new Color(0.30f, 0.65f, 1.00f, 0.85f);
+        }
+        RectTransform qIcR = qIc.GetComponent<RectTransform>();
+        qIcR.anchorMin = new Vector2(0,0); qIcR.anchorMax = new Vector2(0,1);
+        qIcR.pivot = new Vector2(0,0.5f);
+        qIcR.anchoredPosition = new Vector2(10,0);
+        qIcR.sizeDelta = new Vector2(28,0);
+
+        // Label
+        GameObject qLb = MakeRect("Lbl", quitBtn.transform);
+        TextMeshProUGUI qLbT = qLb.AddComponent<TextMeshProUGUI>();
+        qLbT.text = "SAIR"; qLbT.fontSize = 15; qLbT.fontStyle = FontStyles.Bold;
+        qLbT.color = TEXT_MAIN; qLbT.characterSpacing = 2f;
+        qLbT.alignment = TextAlignmentOptions.MidlineLeft;
+        RectTransform qLbR = qLb.GetComponent<RectTransform>();
+        qLbR.anchorMin = new Vector2(0,0); qLbR.anchorMax = new Vector2(1,1);
+        qLbR.pivot = new Vector2(0,0.5f);
+        qLbR.anchoredPosition = new Vector2(46,0);
+        qLbR.sizeDelta = new Vector2(-50,0);
+
+        Button qB = quitBtn.AddComponent<Button>();
+        qB.targetGraphic = qBg;
+        ColorBlock qCb = ColorBlock.defaultColorBlock;
+        qCb.normalColor = BTN_NORMAL; qCb.highlightedColor = BTN_HOVER;
+        qCb.pressedColor = BTN_PRESS; qCb.fadeDuration = 0.10f;
+        qB.colors = qCb;
+        qB.onClick.AddListener(() => controller.QuitApplication());
+
+        var qEt = quitBtn.AddComponent<EventTrigger>();
+        AddTrigger(qEt, EventTriggerType.PointerEnter, _ => qBI.color = ACCENT2);
+        AddTrigger(qEt, EventTriggerType.PointerExit,  _ => qBI.color = ACCENT);
+
         // ── Rodapé ────────────────────────────────────────────────────
         GameObject foot = MakeRect("Footer", cGO.transform);
         TextMeshProUGUI ft = foot.AddComponent<TextMeshProUGUI>();
-        ft.text = "© 2025  ·  Diogo Carvalho";
+        ft.text = "© 2026  ·  Diogo Carvalho";
         ft.fontSize = 13; ft.color = new Color(0.45f, 0.60f, 0.80f, 0.50f);
         ft.alignment = TextAlignmentOptions.Center;
         RectTransform fR = foot.GetComponent<RectTransform>();
@@ -374,6 +435,98 @@ public class MainMenuBuilder : MonoBehaviour
             yield return null;
         }
         cg.alpha = 1f; rt.anchoredPosition = end;
+    }
+
+    // Botão com sprite no ícone (ex: botão Sair com Lock.png)
+    void MakeButtonWithSprite(Transform parent, string label, Sprite icon,
+                              float posY, System.Action onClick)
+    {
+        GameObject btn = MakeRect("Btn_" + label, parent);
+        RectTransform bR = btn.GetComponent<RectTransform>();
+        bR.anchorMin = bR.anchorMax = new Vector2(0.5f, 1f);
+        bR.pivot     = new Vector2(0.5f, 1f);
+        bR.anchoredPosition = new Vector2(0, posY);
+        bR.sizeDelta = new Vector2(560, 72);
+
+        Image bg = btn.AddComponent<Image>();
+        bg.color = BTN_NORMAL;
+
+        // Borda esquerda
+        GameObject bord = MakeRect("Bar", btn.transform);
+        Image bI = bord.AddComponent<Image>();
+        bI.color = ACCENT;
+        RectTransform bdR = bord.GetComponent<RectTransform>();
+        bdR.anchorMin = Vector2.zero; bdR.anchorMax = new Vector2(0,1);
+        bdR.pivot = new Vector2(0,0.5f);
+        bdR.anchoredPosition = Vector2.zero;
+        bdR.sizeDelta = new Vector2(4,0);
+
+        // Ícone sprite
+        GameObject ic = MakeRect("Icon", btn.transform);
+        Image icImg = ic.AddComponent<Image>();
+        if (icon != null)
+        {
+            icImg.sprite = icon;
+            icImg.preserveAspect = true;
+            icImg.color = new Color(0.30f, 0.65f, 1.00f, 0.85f);
+        }
+        else
+        {
+            // Fallback texto se o sprite não estiver atribuído
+            Destroy(icImg);
+            var icT = ic.AddComponent<TextMeshProUGUI>();
+            icT.text = "X"; icT.fontSize = 18; icT.fontStyle = FontStyles.Bold;
+            icT.color = new Color(0.30f, 0.65f, 1.00f, 0.7f);
+            icT.alignment = TextAlignmentOptions.Center;
+        }
+        RectTransform icR = ic.GetComponent<RectTransform>();
+        icR.anchorMin = new Vector2(0,0); icR.anchorMax = new Vector2(0,1);
+        icR.pivot = new Vector2(0,0.5f);
+        icR.anchoredPosition = new Vector2(16,0);
+        icR.sizeDelta = new Vector2(36,0);
+
+        // Label
+        GameObject lb = MakeRect("Lbl", btn.transform);
+        TextMeshProUGUI lbT = lb.AddComponent<TextMeshProUGUI>();
+        lbT.text = label.ToUpper();
+        lbT.fontSize = 18; lbT.fontStyle = FontStyles.Bold;
+        lbT.color = TEXT_MAIN; lbT.characterSpacing = 2f;
+        lbT.alignment = TextAlignmentOptions.MidlineLeft;
+        RectTransform lbR = lb.GetComponent<RectTransform>();
+        lbR.anchorMin = new Vector2(0,0); lbR.anchorMax = new Vector2(1,1);
+        lbR.pivot = new Vector2(0,0.5f);
+        lbR.anchoredPosition = new Vector2(76,0);
+        lbR.sizeDelta = new Vector2(-100,0);
+
+        // Seta
+        GameObject ar = MakeRect("Arrow", btn.transform);
+        TextMeshProUGUI arT = ar.AddComponent<TextMeshProUGUI>();
+        arT.text = "→"; arT.fontSize = 24;
+        arT.color = new Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.75f);
+        arT.alignment = TextAlignmentOptions.MidlineRight;
+        RectTransform arR = ar.GetComponent<RectTransform>();
+        arR.anchorMin = new Vector2(1,0); arR.anchorMax = new Vector2(1,1);
+        arR.pivot = new Vector2(1,0.5f);
+        arR.anchoredPosition = new Vector2(-16,0);
+        arR.sizeDelta = new Vector2(40,0);
+
+        Button b = btn.AddComponent<Button>();
+        b.targetGraphic = bg;
+        ColorBlock cb = ColorBlock.defaultColorBlock;
+        cb.normalColor = BTN_NORMAL; cb.highlightedColor = BTN_HOVER;
+        cb.pressedColor = BTN_PRESS; cb.fadeDuration = 0.10f;
+        b.colors = cb;
+        b.onClick.AddListener(() => onClick());
+
+        var et = btn.AddComponent<EventTrigger>();
+        AddTrigger(et, EventTriggerType.PointerEnter, _ => {
+            StartCoroutine(MoveX(arR, -6f, 0.14f));
+            bI.color = ACCENT2;
+        });
+        AddTrigger(et, EventTriggerType.PointerExit, _ => {
+            StartCoroutine(MoveX(arR, -16f, 0.14f));
+            bI.color = ACCENT;
+        });
     }
 
     // Pulso de brilho subtil no título principal

@@ -151,32 +151,46 @@ public class RelativityManager : MonoBehaviour
         if (Mouse.current.leftButton.isPressed && draggedBody != null)
         {
             Vector3 currentPos = GetMouseWorldPosAtHeight(draggedBody.transform.position.y);
+            bool isPaused = timeline != null && timeline.IsPaused;
 
-            // Calcula velocidade instantânea e suaviza
-            // Só atualiza se o movimento for significativo — evita tremor com micromovimentos (coisa que ainda acontece mas com menor impacto)
-            float moveDist = Vector3.Distance(currentPos, lastDragPos);
-            if (moveDist > 0.05f)
+            if (isPaused)
             {
-                Vector3 instantVel = (currentPos - lastDragPos) / Mathf.Max(Time.deltaTime, 0.016f);
-                velocitySamples[velocitySampleIndex % velocitySamples.Length] = instantVel;
-                velocitySampleIndex++;
+                // Em pausa: drag serve apenas para posicionar.
+                // Não acumula velocidade — a velocidade orbital é definida pela tecla O.
+                dragVelocity = Vector3.zero;
+                smoothDragVelocity = Vector3.zero;
+                for (int i = 0; i < velocitySamples.Length; i++) velocitySamples[i] = Vector3.zero;
+            }
+            else
+            {
+                // Em play: velocidade de lançamento pelo movimento do rato
+                float moveDist = Vector3.Distance(currentPos, lastDragPos);
+                if (moveDist > 0.05f)
+                {
+                    Vector3 instantVel = (currentPos - lastDragPos) / Mathf.Max(Time.deltaTime, 0.016f);
+                    velocitySamples[velocitySampleIndex % velocitySamples.Length] = instantVel;
+                    velocitySampleIndex++;
+                }
+
+                Vector3 avgVel = Vector3.zero;
+                foreach (Vector3 s in velocitySamples) avgVel += s;
+                avgVel /= velocitySamples.Length;
+
+                smoothDragVelocity = Vector3.Lerp(smoothDragVelocity, avgVel, 0.15f);
+                dragVelocity = smoothDragVelocity;
             }
 
-            // Média dos samples
-            Vector3 avgVel = Vector3.zero;
-            foreach (Vector3 s in velocitySamples) avgVel += s;
-            avgVel /= velocitySamples.Length;
-
-            // Lerp suave entre a velocidade anterior e a nova — amortece picos bruscos
-            smoothDragVelocity = Vector3.Lerp(smoothDragVelocity, avgVel, 0.15f);
-            dragVelocity = smoothDragVelocity;
             lastDragPos = currentPos;
-
             draggedBody.MoveTo(currentPos);
 
-            // Desenha a trajetória prevista só para massas leves
+            // Preview de trajetória só para massas leves
+            // Em pausa: velocidade zero (mostra onde o planeta fica parado)
+            // Em play: velocidade de drag (mostra a trajetória de lançamento)
             if (trajectoryPreview != null && !draggedBody.deformsGrid)
-                trajectoryPreview.DrawPreview(draggedBody.transform.position, dragVelocity * 0.8f);
+            {
+                Vector3 previewVel = isPaused ? Vector3.zero : dragVelocity * 0.8f;
+                trajectoryPreview.DrawPreview(draggedBody.transform.position, previewVel);
+            }
         }
 
         // Largar
@@ -479,7 +493,6 @@ public class RelativityManager : MonoBehaviour
     }
 
     // Calcula e aplica velocidade orbital ao planeta leve em relação à estrela mais próxima
-    // Mesmo padrão do CalcOrbitalVelocity do MouseInteraction no laboratório
     void ApplyOrbitalVelocity(RelativityBody lightBody)
     {
         RelativityBody nearest = GetNearestHeavyBody(lightBody.transform.position);
@@ -490,16 +503,19 @@ public class RelativityManager : MonoBehaviour
         float r = toHeavy.magnitude;
         if (r < 0.1f) return;
 
-        // Velocidade orbital calibrada para a grid:
         // v = sqrt(deformStrength * massRatio * slideForce / r)
-        float massRatio = Mathf.Clamp(nearest.mass / grid.referenceMass, 0f, 2f);
+        // slideForce é o equivalente à constante gravitacional nesta simulação —
+        // converte o gradiente da grid em aceleração, tal como G converte massa em força.
+        float massRatio = Mathf.Clamp(nearest.mass / grid.referenceMass, 0f, 3f);
         float speed = Mathf.Sqrt(grid.deformStrength * massRatio * lightBody.slideForce / Mathf.Max(r, 1f));
-        speed = Mathf.Clamp(speed, 0.5f, 30f);
+        speed = Mathf.Clamp(speed, 0.5f, 40f);
 
-        // Direção perpendicular ao vetor planeta-estrela no plano XZ
-        // Cross de Vector3.up com toHeavy.normalized — mesmo cálculo do laboratório
         Vector3 tangent = Vector3.Cross(Vector3.up, toHeavy.normalized).normalized;
-        lightBody.EndDrag(tangent * speed);
+
+        // EndDrag primeiro (sai do modo isDragging), depois SetVelocity por cima —
+        // se a ordem fosse inversa, EndDrag sobrescrevia velocity com zero.
+        lightBody.EndDrag(Vector3.zero);
+        lightBody.SetVelocity(tangent * speed);
     }
 
     // Chamado pelo SliderInputBlocker para bloquear/desbloquear o input da grid

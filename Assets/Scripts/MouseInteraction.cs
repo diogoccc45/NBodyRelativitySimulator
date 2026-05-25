@@ -64,7 +64,15 @@ public class MouseInteraction : MonoBehaviour
 
     void Start()
     {
+        // Inicializa como estrela — garante que slider e prefab estão sincronizados
+        // desde o primeiro frame, independentemente dos valores do Inspector
         currentPrefab = starPrefab;
+        if (massSlider != null)
+        {
+            massSlider.minValue = 10f;
+            massSlider.maxValue = 500f;
+            massSlider.value    = 100f;
+        }
         ResetGhost();
 
         // Configuração inicial da linha visual
@@ -107,7 +115,10 @@ public class MouseInteraction : MonoBehaviour
     const float planetLogMax = 51f;
     float SliderToPlanetMass(float sliderVal)
     {
-        return planetLogMin * Mathf.Pow(planetLogMax / planetLogMin, sliderVal);
+        // Clamp para garantir que sliderVal >= 0 — valor negativo (slider não inicializado)
+        // produzia massa próxima de zero que causava localScale = Infinity no UpdateAppearance
+        float safeVal = Mathf.Max(0f, sliderVal);
+        return planetLogMin * Mathf.Pow(planetLogMax / planetLogMin, safeVal);
     }
 
     // Inverso: dada uma massa interna, devolve a posição do slider correspondente
@@ -135,6 +146,10 @@ public class MouseInteraction : MonoBehaviour
             }
 
             ghostComponent = ghostInstance.GetComponent<StarComponent>();
+            // Define isPlanet imediatamente para que o primeiro UpdateAppearance
+            // use a fórmula de escala correcta antes do Update correr
+            if (ghostComponent != null)
+                ghostComponent.isPlanet = (currentPrefab == planetPrefab);
         }
     }
 
@@ -428,10 +443,18 @@ public class MouseInteraction : MonoBehaviour
     {
         if (ghostInstance == null || ghostComponent == null || massSlider == null) return;
 
-        // Para planetas usa a massa interna real (escala logarítmica), não o valor direto do slider
-        ghostComponent.mass = (currentPrefab == planetPrefab)
+        // Ghost usa exactamente a mesma massa que o objeto criado usaria —
+        // mesma expressão das linhas de spawn para garantir escala idêntica
+        ghostComponent.isPlanet = (currentPrefab == planetPrefab);
+        float computedMass = (currentPrefab == planetPrefab)
             ? SliderToPlanetMass(massSlider.value)
             : massSlider.value;
+
+        // Protege contra zero/negativo/NaN
+        if (!float.IsFinite(computedMass) || computedMass <= 0f)
+            computedMass = ghostComponent.isPlanet ? 0.33f : 10f;
+
+        ghostComponent.mass = computedMass;
         ghostComponent.UpdateAppearance();
 
         Renderer rend = ghostInstance.GetComponent<Renderer>();
