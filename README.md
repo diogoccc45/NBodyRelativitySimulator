@@ -35,22 +35,6 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 
 ---
 
-## 🎬 Demo Videos
-
-### Video 1 — `Newton_Aleatorio.mp4`
-Shows the initial spawn of 100 stars with randomized distribution and initial velocities. Demonstrates manual star creation using the mouse and the mass slider. Ends with the reset button, which clears the simulation and re-spawns 100 new stars with a fresh random distribution.
-
-### Video 2 — `Laboratorio1.mp4`
-Demonstration of basic interactions between planets and stars: stable orbits, gravitational capture, and planet absorption by stars with the full accretion spiral animation (ionization → vaporization → impact → bipolar flare).
-
-### Video 3 — `Laboratio2_Colisoes_Camaras.mp4`
-Demonstration of all collision types: planet-planet (merge or fragmentation), star-star (merge with emission pulse), planet-star (absorption). Also showcases all available controls — keyboard shortcuts, mass slider, aim mode, timeline (pause/rewind/fast-forward), velocity heatmap, and gravitational force lines.
-
-### Video 4 — `Relatividade.mp4`
-Full demonstration of the General Relativity scene: spacetime grid deformation by heavy masses, real-time gravitational waves, light mass sliding along the curvature, trajectory preview, pause mode for precise positioning, and the `O` key for automatic orbital velocity.
-
----
-
 ## 🚀 Key Features
 
 ### 1. Dynamic N-Body Simulation
