@@ -15,22 +15,6 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 
 ---
 
-## 📦 Delivery Contents
-
-| File | Description |
-|---|---|
-| `Projeto_Final_Build_up202509333.zip` | **Windows** executable — instructions below |
-| `Build_Mac.app.zip` | **macOS** executable — instructions below |
-| `Projeto_Final_Assets_up20250933.zip` | Full Unity project folder — open with **Unity 6** (6000.3.x) |
-
-> **Windows:** Extract the full `Projeto_Final_Build_up202509333.zip` and run the `.exe`. The executable cannot run alone — it requires the adjacent `_Data` folder and dlls. No installation needed.
-
-> **macOS:** Extract `Build_Mac.app.zip` to get the `.app` file. If a "developer unverified" warning appears, right-click → Open → Open anyway. Compatible with both Intel and Apple Silicon (M1/M2/M3).
-
-> **Running in Unity:** Extract `Projeto_Final_Assets_up20250933.zip` and open the folder via Unity Hub → Add project from disk. Requires Unity 6 (6000.3.x).
-
----
-
 ## 🚀 Key Features
 
 ### 1. Dynamic N-Body Simulation
