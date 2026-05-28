@@ -22,10 +22,6 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 | `Projeto_Final_Build_up202509333.zip` | **Windows** executable — instructions below |
 | `Build_Mac.app.zip` | **macOS** executable — instructions below |
 | `Projeto_Final_Assets_up20250933.zip` | Full Unity project folder — open with **Unity 6** (6000.3.x) |
-| `Newton_Aleatorio.mp4` | Video 1 — Newton Random scene demonstration |
-| `Laboratorio1.mp4` | Video 2 — Basic interactions in the Orbital Laboratory |
-| `Laboratio2_Colisoes_Camaras.mp4` | Video 3 — Collisions and full controls in the Orbital Laboratory |
-| `Relatividade.mp4` | Video 4 — Full General Relativity scene demonstration |
 
 > **Windows:** Extract the full `Projeto_Final_Build_up202509333.zip` and run the `.exe`. The executable cannot run alone — it requires the adjacent `_Data` folder and dlls. No installation needed.
 
