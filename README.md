@@ -10,14 +10,44 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 
 ## ⬇️ Download
 
-[![Windows](https://img.shields.io/badge/-Download%20for%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/diogoccc45/NBodyRelativitySimulator/releases/download/v1.0/Build_Windows.zip)
-[![macOS](https://img.shields.io/badge/-Download%20for%20macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/diogoccc45/NBodyRelativitySimulator/releases/download/v1.0/Build_Mac.app.zip)
+[![Windows](https://img.shields.io/badge/Download-Windows-0078D6?style=for-the-badge&logo=windows)](https://github.com/diogoccc45/NBodyRelativitySimulator/releases/download/v1.0/Build_Windows.zip)
+[![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple)](https://github.com/diogoccc45/NBodyRelativitySimulator/releases/download/v1.0/Build_Mac.app.zip)
 
 ---
 
-## 🎬 Demo
+## 📦 Delivery Contents
 
-[![Watch the demo](https://img.youtube.com/vi/RpCML1tT1vM/maxresdefault.jpg)](https://www.youtube.com/watch?v=RpCML1tT1vM)
+| File | Description |
+|---|---|
+| `Projeto_Final_Build_up202509333.zip` | **Windows** executable — instructions below |
+| `Build_Mac.app.zip` | **macOS** executable — instructions below |
+| `Projeto_Final_Assets_up20250933.zip` | Full Unity project folder — open with **Unity 6** (6000.3.x) |
+| `Newton_Aleatorio.mp4` | Video 1 — Newton Random scene demonstration |
+| `Laboratorio1.mp4` | Video 2 — Basic interactions in the Orbital Laboratory |
+| `Laboratio2_Colisoes_Camaras.mp4` | Video 3 — Collisions and full controls in the Orbital Laboratory |
+| `Relatividade.mp4` | Video 4 — Full General Relativity scene demonstration |
+
+> **Windows:** Extract the full `Projeto_Final_Build_up202509333.zip` and run the `.exe`. The executable cannot run alone — it requires the adjacent `_Data` folder and dlls. No installation needed.
+
+> **macOS:** Extract `Build_Mac.app.zip` to get the `.app` file. If a "developer unverified" warning appears, right-click → Open → Open anyway. Compatible with both Intel and Apple Silicon (M1/M2/M3).
+
+> **Running in Unity:** Extract `Projeto_Final_Assets_up20250933.zip` and open the folder via Unity Hub → Add project from disk. Requires Unity 6 (6000.3.x).
+
+---
+
+## 🎬 Demo Videos
+
+### Video 1 — `Newton_Aleatorio.mp4`
+Shows the initial spawn of 100 stars with randomized distribution and initial velocities. Demonstrates manual star creation using the mouse and the mass slider. Ends with the reset button, which clears the simulation and re-spawns 100 new stars with a fresh random distribution.
+
+### Video 2 — `Laboratorio1.mp4`
+Demonstration of basic interactions between planets and stars: stable orbits, gravitational capture, and planet absorption by stars with the full accretion spiral animation (ionization → vaporization → impact → bipolar flare).
+
+### Video 3 — `Laboratio2_Colisoes_Camaras.mp4`
+Demonstration of all collision types: planet-planet (merge or fragmentation), star-star (merge with emission pulse), planet-star (absorption). Also showcases all available controls — keyboard shortcuts, mass slider, aim mode, timeline (pause/rewind/fast-forward), velocity heatmap, and gravitational force lines.
+
+### Video 4 — `Relatividade.mp4`
+Full demonstration of the General Relativity scene: spacetime grid deformation by heavy masses, real-time gravitational waves, light mass sliding along the curvature, trajectory preview, pause mode for precise positioning, and the `O` key for automatic orbital velocity.
 
 ---
 
