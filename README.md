@@ -146,3 +146,5 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 ---
 
 > **📝 Note:** All in-code comments and documentation throughout the project scripts are written in Portuguese. I apologize for any inconvenience this may cause when reading through the source code — it was a conscious choice made during development to keep the technical notes aligned with the course language. The code itself, variable names, and method signatures are in English.
+>
+> **📝Second Note:** This project was made with the help of Claude Sonnet 4.6.
