@@ -110,7 +110,7 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 | **Engine** | Unity 6 (6000.3.x) |
 | **Language** | C# |
 | **Graphics** | Universal Render Pipeline (URP) |
-| **Shaders** | Custom HLSL — `NebulaClouds_UI` (domain-warped FBM, vortex, filaments) |
+| **Shaders** | 6 custom HLSL shaders — see Technical Highlights |
 | **Physics** | Newtonian N-body, O(n²) pairwise force calculation |
 | **Input** | Unity Input System (new) |
 
@@ -119,7 +119,13 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 ## 🔬 Technical Highlights
 
 - **N-body simulation** with Euler integration and O(n²) pairwise gravitational force calculation
-- **Procedural HLSL shader** (`NebulaClouds_UI`) with domain-warped Fractional Brownian Motion, animated vortex and organic filaments — no external textures
+- **6 custom HLSL shaders**, all written from scratch:
+  - `NebulaClouds_UI` — domain-warped Fractional Brownian Motion, animated vortex and organic filaments (main menu background)
+  - `NebulaClouds` — volumetric nebula clouds in 3D space
+  - `SpacetimeGrid` — real-time deformable grid with curvature-based color shift and gravitational wave ripple
+  - `AccretionDisk` / `AccretionDiskFront` — rotating accretion disk with temperature gradient (back and front layers)
+  - `BlackHoleHorizon` — photon ring rim lighting effect around the event horizon
+  - `PlanetRimLight` — atmospheric rim lighting for planets
 - **4-phase absorption sequence** with procedural animation: accretion spiral, plasma trail, vaporization and bipolar flare
 - **Collision system** with three configurable modes: fragment by mass ratio, fragment all, and elastic bounce
 - **Timeline with rewind** — records simulation snapshots and allows navigation through time
@@ -146,3 +152,5 @@ Developed for the Computer Graphics Course, this project explores Newtonian phys
 ---
 
 > **📝 Note:** All in-code comments and documentation throughout the project scripts are written in Portuguese. I apologize for any inconvenience this may cause when reading through the source code — it was a conscious choice made during development to keep the technical notes aligned with the course language. The code itself, variable names, and method signatures are in English.
+>
+> **📝Second Note:** This project was made with the help of Claude Sonnet 4.6.
