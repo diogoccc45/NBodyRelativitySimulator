@@ -1,10 +1,10 @@
-# 🌌 N-Body Gravity Simulator & Orbital Laboratory
+# 🌌 N-Body/Relativity Simulator: Education Edition
 ### Final Project — Computer Graphics Course · 2025/2026
 **Author:** Diogo Carvalho
 
-An interactive 3D N-body gravitational simulation developed in Unity, focusing on astrophysical visualization and real-time user-controlled orbital mechanics.
+An interactive 3D N-body gravitational/relativity simulation developed in Unity, focusing on astrophysical visualization and real-time user-controlled orbital mechanics.
 
-Developed for the Computer Graphics Course, this project explores Newtonian physics, procedural rendering, and interactive simulation environments.
+Developed for the Computer Graphics Course, this project explores Newtonian physics, General Relativity, procedural rendering, and interactive simulation environments.
 
 ---
 
