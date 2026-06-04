@@ -1,0 +1,886 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages --------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+% Page geometry -------------------------------------------------------------
+\geometry{a4paper, top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% Section formatting --------------------------------------------------------
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Code listing style --------------------------------------------------------
+\definecolor{codebg}{rgb}{0.97,0.97,0.97}
+\definecolor{codeframe}{rgb}{0.75,0.75,0.75}
+\definecolor{codecomment}{rgb}{0.40,0.40,0.40}
+\definecolor{codekeyword}{rgb}{0.13,0.29,0.53}
+\definecolor{codestring}{rgb}{0.16,0.50,0.20}
+
+\lstset{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\color{codekeyword}\bfseries,
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=4,
+  captionpos=b,
+  language=[Sharp]C,
+}
+
+% Hyperref --------------------------------------------------------------
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue, citecolor=black}
+
+% Header / Footer --------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+
+% ============================================================
+\begin{document}
+
+%  Title block --------------------------------------------------------------
+\begin{titlepage}
+  \vspace*{\fill} % Mola invisível que empurra o conteúdo para baixo
+  
+  \begin{center}
+    % Logo da FCUP - Ajustado para 5cm de largura
+    \includegraphics[width=5cm]{Imagens/fcup-identidade-logotipo-cores.png}\\[2.5em]
+    {\LARGE\bfseries Projeto Final de Computa\c{c}\~{a}o Gr\'{a}fica}\\[0.6em]
+    {\large NBody/Relativity Simulator: Education Edition}\\[1.4em]
+    {\large Diogo Carvalho}\\[0.3em]
+    \normalsize\texttt{up202509333@fc.up.pt}\\[0.5em]
+    \normalsize Junho 2026\\[0.8em]
+    \vspace{0.6em}
+    \small\url{https://github.com/diogoccc45/NBodyRelativitySimulator}
+  \end{center}
+  \vspace*{\fill}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+\section*{Introdu\c{c}\~{a}o e Vis\~{a}o Geral}
+\addcontentsline{toc}{section}{Introdu\c{c}\~{a}o e Vis\~{a}o Geral}
+
+O projeto implementa, num \'{u}nico motor, tr\^{e}s dom\'{i}nios distintos de simula\c{c}\~{a}o astrof\'{i}sica: din\^{a}mica Newtoniana N-body, colis\~{o}es planet\'{a}rias com fragmenta\c{c}\~{a}o, e curvatura do espa\c{c}o-tempo Einsteiniana. Cada um destes dom\'{i}nios tem exig\^{e}ncias computacionais distintas que entraram em conflito direto com a aus\^{e}ncia de GPU dedicada no hardware de desenvolvimento.
+
+\subsection*{Reposit\'{o}rio P\'{u}blico}
+
+O c\'{o}digo-fonte completo do projeto est\'{a} dispon\'{i}vel em:
+
+\begin{center}
+  \url{https://github.com/diogoccc45/NBodyRelativitySimulator}
+\end{center}
+
+O reposit\'{o}rio cont\'{e}m o projeto Unity 6 completo com todos os scripts analisados neste documento, organizado da seguinte forma:
+
+\begin{itemize}
+  \item \texttt{Assets/Scripts/}: todos os scripts C\# descritos nas sec\c{c}\~{o}es seguintes, incluindo \texttt{StarSystemManager}, \texttt{PlanetCollision}, \texttt{SpacetimeGrid}, \texttt{GravitationalWaves} e restantes;
+  \item \texttt{Assets/Scenes/}: \texttt{Newton\_Aleat\'{o}rio}, \texttt{Laborat\'{o}rio\_Manual}, \texttt{Relatividade\_Geral} e \texttt{MainMenu} - as 4 cenas do Simulador;
+  \item \texttt{Assets/Shaders/}: os seis shaders HLSL/URP desenvolvidos de raiz.
+\end{itemize}
+
+Para correr o projeto: instalar Unity 6 (vers\~{a}o \texttt{6000.3.10f1} ou superior), clonar o reposit\'{o}rio e abrir com o Unity Hub. N\~{a}o s\~{a}o necess\'{a}rias depend\^{e}ncias externas al\'{e}m dos pacotes Unity inclu\'{i}dos no projeto.
+
+% ============================================================
+\section{Descri\c{c}\~{a}o Funcional do Projeto}
+
+O projeto \'{e} um simulador interativo de fen\'{o}menos astrof\'{i}sicos desenvolvido em Unity 6 (\texttt{6000.3.10f1}), com quatro cenas independentes. Esta sec\c{c}\~{a}o descreve o que foi implementado e como o utilizador interage com o sistema, com base na an\'{a}lise direta de todos os scripts. Serve de base para a an\'{a}lise cr\'{i}tica que se segue.
+
+\subsection{Cena Newton\_Aleatorio: Simula\c{c}\~{a}o N-body com Intera\c{c}\~{a}o}
+
+Ao iniciar, gera automaticamente uma gal\'{a}xia com 100 estrelas distribu\'{i}das em esfera de raio 30 u., cada uma com massa aleat\'{o}ria entre 10 e 500 unidades e velocidade tangencial inicial. A f\'{i}sica N-body corre em tempo real; fus\~{o}es estrela-estrela est\~{a}o desativadas nesta cena (\texttt{enableMerging = false}).
+
+O utilizador \textbf{pode intervir diretamente}: o \texttt{MouseInteraction} est\'{a} presente nesta cena, permitindo criar novas estrelas com o mecanismo de estilingue (clique esquerdo + arrastar) e lan\c{c}\'{a}-las na gal\'{a}xia j\'{a} em evolu\c{c}\~{a}o, observando como interagem com o sistema existente. Os controlos de teclado dispon\'{i}veis nesta cena s\~{a}o: \textbf{Espa\c{c}o} (pausa/retoma), \textbf{J/L} (rewind/fast-forward do historial gravado), e o modo de c\^{a}mara \textit{Fly} com WASD + clique direito para rodar + \textbf{Shift} para turbo. N\~{a}o existe \texttt{CameraManager} nem \texttt{Minimap} nesta cena, a c\^{a}mara \'{e} exclusivamente a \texttt{CameraFly}.
+
+O fundo \'{e} gerado por \texttt{ProceduralStarfield} (20\,000 estrelas, raio 5000) e \texttt{ProceduralNebula} (80 \textit{quads billboard}).
+
+\subsection{Cena Laboratorio\_Manual: Modo Interativo Completo}
+
+\'{E} a cena de maior riqueza interativa. O utilizador constr\'{o}i e manipula o sistema em tempo real, alternando entre estrelas e planetas com massas ajust\'{a}veis, observando colis\~{o}es, fragmenta\c{c}\~{o}es, absor\c{c}\~{o}es e rewind temporal. Cont\'{e}m o conjunto mais completo de scripts:
+
+\begin{center}
+  \small
+  \begin{tabular}{ll}
+    \texttt{MouseInteraction} & \texttt{ObjectInspector} \\
+    \texttt{SimulationTimeline} & \texttt{SettingsPanel} \\
+    \texttt{CameraManager} & \texttt{SidePanelController} \\
+    \texttt{CameraFly} & \texttt{PlanetCollision} \\
+    \texttt{BarycentreCamera} & \texttt{PlanetAbsorption} \\
+    \texttt{TwoBodyCamera} & \texttt{ProceduralStarfield} \\
+    \texttt{StarFollowCamera} & \texttt{ProceduralNebula} \\
+    \texttt{Minimap} & \texttt{GravityLines} \\
+  \end{tabular}
+\end{center}
+
+\subsubsection{Tipo de Objeto a Criar}
+
+Os bot\~{o}es de UI da barra lateral chamam \texttt{MudarTipo(bool eEstrela)}: alterna entre spawnar estrelas (massa 10--500 unidades solares internas, slider linear) ou planetas (massa 0.33--51 unidades terrestres internas, slider logar\'{i}tmico). O objeto selecionado \'{e} sempre pr\'{e}-visualizado como um \textit{ghost} semitransparente sob o cursor.
+
+\subsubsection{Intera\c{c}\~{o}es de Rato}
+
+\begin{itemize}
+  \item \textbf{Clique esquerdo + arrastar} --- estilingue: o ponto de press\~{a}o \'{e} a origem; ao largar, a velocidade \'{e} proporcional ao vetor origin\'{a}rio (drag Start $\to$ drag End);
+  \item \textbf{O + clique esquerdo + arrastar (planeta selecionado)} --- cria o planeta com velocidade orbital calculada automaticamente (\texttt{CalcOrbitalVelocity}) em rela\c{c}\~{a}o \`{a} estrela mais pr\'{o}xima, ignorando a dire\c{c}\~{a}o do arrasto; pr\'{e}-visualiza a trajet\'{o}ria geod\'{e}sica prevista;
+  \item \textbf{Shift + clique esquerdo + arrastar} --- cria objeto estacion\'{a}rio (velocidade zero), \'{u}til para testar captura gravitacional a partir do repouso;
+  \item \textbf{Clique direito (modo planeta, sobre um objeto)} --- ativa modo de mira (\textit{aim mode}): faz \textit{raycast} e bloqueia o alvo no objeto clicado, projetando uma linha de mira e mostrando a dist\^{a}ncia em UA em tempo real; um clique esquerdo subsequente lan\c{c}a o planeta diretamente para esse alvo. S\'{o} funciona quando o modo de spawn \'{e} planeta (\texttt{currentPrefab == planetPrefab});
+  \item \textbf{Bot\~{a}o do meio (Mouse3)} --- modo \textit{Follow}: a c\^{a}mara passa a seguir o objeto sob o cursor; clicar de novo sai do modo \textit{Follow}; o \texttt{ObjectInspector} ativa-se e mostra em tempo real: tipo, nome, massa (M$_\odot$ ou M$_\oplus$), velocidade (km/s), velocidade de escape (km/s), energia cin\'{e}tica (J), for\c{c}a gravitacional total (N), dist\^{a}ncia \`{a} estrela mais pr\'{o}xima (UA) e n\'{u}mero de corpos em \'{o}rbita (s\'{o} para estrelas);
+  \item \textbf{Scroll} --- zoom da c\^{a}mara (quando no modo \textit{Follow}).
+\end{itemize}
+
+\subsubsection{Controlos de Teclado}
+
+\begin{itemize}
+  \item \textbf{Espa\c{c}o} --- pausa / retoma a simula\c{c}\~{a}o (\texttt{SimulationTimeline});
+  \item \textbf{J} (manter) --- recua a simula\c{c}\~{a}o no historial gravado, quadro a quadro (\textit{rewind}); grava a 20 \textit{snapshots}/s, at\'{e} 30 segundos de hist\'{o}rico;
+  \item \textbf{L} (manter) --- avan\c{c}a na simula\c{c}\~{a}o gravada (\textit{fast-forward}); ao chegar ao \textit{frame} mais recente, volta ao modo \textit{live};
+  \item \textbf{O} (durante arrasto, com planeta selecionado) --- substitui a velocidade de lan\c{c}amento pela velocidade orbital calculada;
+  \item \textbf{T} --- alterna as ferramentas espaciais: \textit{minimap} e linha tracejada de dist\^{a}ncia \`{a} estrela mais pr\'{o}xima (\texttt{DashedLine});
+  \item \textbf{G} --- alterna as linhas de gravidade: \texttt{GravityLines} desenha segmentos codificados por cor (azul fraco $\to$ amarelo forte) entre todos os pares com for\c{c}a acima do limiar, limitado a 15 pares por frame;
+  \item \textbf{H} --- alterna o \textit{heat map} de velocidade nas caudas dos astros: azul frio $\to$ ciano $\to$ branco $\to$ laranja $\to$ vermelho quente;
+  \item \textbf{C} --- cicla os modos de c\^{a}mara dispon\'{i}veis via \texttt{CameraManager}: Livre (\texttt{CameraFly}) $\to$ Cineasta (\texttt{DirectorCamera}) $\to$ C\^amara Baricentro (\texttt{BarycentreCamera}) $\to$ Dois Corpos (\texttt{TwoBodyCamera});
+  \item \textbf{Esc} --- cancela o modo de mira ativo;
+  \item \textbf{F} (modo Livre) --- anima\c{c}\~{a}o suave de foco para o \'{u}ltimo objeto criado (\texttt{CameraFly.}\allowbreak\texttt{FocusOnLastObject});
+  \item \textbf{WASD} (modo Livre) --- movimento da c\^{a}mara FPS na dire\c{c}\~{a}o para onde aponta;
+  \item \textbf{Shift} (modo Livre, manter) --- turbo da c\^{a}mara Fly: velocidade sobe de 100 para 500 unidades/s;
+  \item \textbf{Clique direito + arrastar} (modo Livre) --- rota\c{c}\~{a}o da c\^{a}mara (\textit{yaw}/\textit{pitch} independentes, \textit{pitch} limitado a $\pm89^{\circ}$ para evitar \textit{gimbal lock}).
+\end{itemize}
+
+\subsubsection{Modos de C\^{a}mara}
+
+\begin{itemize}
+  \item \textbf{Livre (\texttt{CameraFly}):} FPS livre; WASD move, clique direito roda, \textbf{Shift} turbo, \textbf{F} foca no \'{u}ltimo objeto criado;
+  \item \textbf{Cineasta (\texttt{DirectorCamera}):} c\^{a}mara autom\'{a}tica que avalia um \textit{score} por objeto (massa, velocidade, proximidade a outro corpo, fus\~{o}es recentes) e reposiciona-se suavemente para o evento mais dram\'{a}tico da simula\c{c}\~{a}o, n\~{a}o requer interven\c{c}\~{a}o do utilizador;
+  \item \textbf{Baricentro (\texttt{BarycentreCamera}):} roda automaticamente em torno do centro de massa ponderado; clique direito pausa a rota\c{c}\~{a}o autom\'{a}tica e deixa orbitar manualmente; ajusta dist\^{a}ncia para enquadrar todos os corpos;
+  \item \textbf{Dois Corpos (\texttt{TwoBodyCamera}):} enquadra os dois objetos mais massivos; reavalia os alvos de 2 em 2 segundos (fus\~{o}es alteram a hierarquia);
+  \item \textbf{\textit{Follow} (\texttt{StarFollowCamera}, Mouse3):} segue um objeto espec\'{i}fico; ativa o \texttt{Object\ Inspector}.
+\end{itemize}
+
+\subsubsection{Painel de Configura\c{c}\~{a}o (\texttt{SettingsPanel})}
+
+Acess\'{i}vel via bot\~{a}o "<"; desliza com anima\c{c}\~{a}o suave (\texttt{SidePanelController}). Permite ajustar em tempo real:
+modo de colis\~{a}o (\textit{FragmentByMass}, \textit{FragmentAll}, \textit{Bounce});
+limiar de raz\~{a}o de massa para fragmenta\c{c}\~{a}o (1.2--5.0);
+expoente $\beta$ de fragmenta\c{c}\~{a}o (0.2--1.0);
+coeficiente de restituic\~{a}o (0.1--1.0);
+escala temporal da simula\c{c}\~{a}o;
+e fus\~{o}es estrela-estrela (\textit{toggle}).
+O painel mostra um aviso em tempo real (\textit{polling} a cada \textit{frame}) quando o limiar de massa inviabiliza fragmenta\c{c}\~{o}es com os planetas presentes.
+
+\subsubsection{Sequ\^{e}ncia de Absor\c{c}\~{a}o (\texttt{PlanetAbsorption})}
+
+Quando um planeta entra no raio de captura de uma estrela (1.5$\times$ o raio visual), o \texttt{PlanetAbsorption} faz surgir uma sequ\^{e}ncia animada em quatro fases: (1) espiral de acre\c{c}\~{a}o com rasto de plasma e halo de ioniza\c{c}\~{a}o ($\approx$1.5\,s); (2) vaporiza\c{c}\~{a}o com pulsos de brilho (0.5\,s, 3 pulsos); (3) \textit{flash} de impacto; (4) \textit{flare} bipolar e onda de calor em paralelo. A estrela ganha 10\% da massa do planeta e emite um pulso de emiss\~{a}o (\texttt{AbsorptionPulse}). Se a c\^{a}mara estiver em modo \textit{Follow} a seguir o planeta absorvido, muda automaticamente para modo Livre.
+
+
+\subsection{Cena Relatividade\_Geral: Curvatura do Espa\c{c}o-Tempo}
+
+O utilizador coloca massas sobre uma \textit{grid} 2D plana ($20 \times 20$ c\'{e}lulas de 3 u.) que se deforma gravitacionalmente em tempo real. Scripts presentes:
+
+\begin{center}
+  \small
+  \begin{tabular}{ll}
+    \texttt{RelativityManager} & \texttt{RelativityCameraManager} \\
+    \texttt{SpacetimeGrid} & \texttt{OrbitalCamera} \\
+    \texttt{GravitationalWaves} & \texttt{CameraFly} \\
+    \texttt{RelativityBody} & \texttt{Minimap} \\
+    \texttt{RelativityCollision} & \texttt{SidePanelController} \\
+    \texttt{BinaryBlackHoleManager} & \texttt{ProceduralStarfield} \\
+    \texttt{RelativityTimeline} & \texttt{ProceduralNebula} \\
+    \texttt{RelativityTrajectory} & \\
+  \end{tabular}
+\end{center}
+
+\subsubsection{Intera\c{c}\~{o}es de Rato}
+
+\begin{itemize}
+  \item \textbf{Clique esquerdo na grid} --- coloca uma massa do tipo selecionado (Estrela, Planeta ou Buraco Negro); ao pousar, gera imediatamente uma onda gravitacional propagante na grid;
+  \item \textbf{Clique esquerdo + arrastar numa massa} --- move-a pela grid; durante o arrasto, o \texttt{RelativityTrajectory} desenha uma pr\'{e}-visualiza\c{c}\~{a}o da trajet\'{o}ria (amarelo = fica dentro da grid, vermelho = vai sair); ao largar, a velocidade de arrasto \'{e} transferida para o objeto e gera nova onda;
+  \item \textbf{Clique direito numa massa} --- remove-a da cena;
+  \item \textbf{Scroll} --- zoom da c\^{a}mara orbital (modo Orbital padr\~{a}o); aproxima ou afasta o ponto de foco da grid.
+\end{itemize}
+
+\subsubsection{Controlos de Teclado}
+
+\begin{itemize}
+  \item \textbf{Espa\c{c}o} --- pausa / retoma o movimento de todos os planetas leves (\texttt{Relativity\ Timeline});
+  \item \textbf{O} (quando pausado) --- aplica velocidade orbital autom\'{a}tica a todos os planetas leves presentes na cena, calculada em rela\c{c}\~{a}o \`{a} estrela mais pr\'{o}xima;
+  \item \textbf{C} --- alterna entre c\^{a}mara Orbital (\texttt{OrbitalCamera}, padr\~{a}o) e Livre (\texttt{CameraFly}, limitada \`{a} zona da grid pelo \texttt{RelativityCameraManager});
+  \item \textbf{WASD + Shift + clique direito} (modo Fly) --- mesmos controlos da \texttt{CameraFly} do Laborat\'{o}rio; Shift para turbo.
+\end{itemize}
+
+\subsubsection{Modos de Objeto e F\'{i}sica}
+
+Tr\^{e}s tipos de massa dispon\'{i}veis:
+\begin{itemize}
+  \item \textbf{Estrela}: massa ajust\'{a}vel por slider (50--500); deforma fortemente a grid (\texttt{deforms\ Grid = true}); fica fixa no plano XZ;
+  \item \textbf{Planeta leve}: massa pequena (5 unidades); desliza pela curvatura da grid seguindo o gradiente geom\'{e}trico (\texttt{SlideAlongGrid}); amortecimento muito suave (\texttt{damping = 0.999}); amortecimento progressivo extra nas bordas para evitar sa\'{i}das;
+  \item \textbf{Buraco Negro}: massa extrema (800 unidades) com horizonte de eventos visual e disco de acre\c{c}\~{a}o animado (\texttt{BlackHoleBody}).
+\end{itemize}
+
+\subsubsection{Colis\~{o}es na Cena de Relatividade (\texttt{RelativityCollision})}
+
+Quatro comportamentos distintos conforme o par de objetos: planeta + estrela (absor\c{c}\~{a}o com pulso de brilho); estrela + estrela (\textit{kilonova} com \textit{flash}, \textit{shockwave} dupla e crescimento da sobrevivente); buraco negro + estrela (absor\c{c}\~{a}o com jatos relativ\'{i}sticos intensos); planeta + planeta (fus\~{a}o simples).
+
+\subsubsection{Sistema Bin\'{a}rio de Buracos Negros (\texttt{BinaryBlackHoleManager})}
+
+Quando dois buracos negros s\~{a}o colocados na cena, o \texttt{BinaryBlackHoleManager} ativa-se automaticamente. Simula \textit{scattering} gravitacional m\'{u}tuo com amortecimento (\texttt{velocity\ Damping = 0.98}), deforma\c{c}\~{a}o tidal progressiva nos discos de acre\c{c}\~{a}o (baseada na dist\^{a}ncia entre os dois buracos negros, par\^{a}metros \texttt{tidalStartDistance} e \texttt{tidalPeakDistance}), emiss\~{a}o peri\'{o}dica de ondas gravitacionais (\texttt{waveInterval = 0.4\,s}) e modo cinem\'{a}tico com c\^{a}mara automatiz\'{a}da que acompanha os buracos negros durante o \textit{flyby}.\cite{bjerrumbohr2026resumming} Um bot\~{a}o de UI ativa o \textit{scattering} manualmente.
+
+\subsection{Cena MainMenu}
+
+Tr\^{e}s scripts constroem o menu inteiramente por c\'{o}digo, sem assets externos de UI:
+
+\begin{itemize}
+  \item \textbf{\texttt{MainMenuBuilder}}: constr\'{o}i toda a hierarquia de UI em \texttt{Start()}: cria o \texttt{Canvas} (modo \textit{ScreenSpaceOverlay}, escala com a resolu\c{c}\~{a}o), fundo em dois gradientes sobrepostos, campo de 180 estrelas UI (\texttt{StarField}, componente interno do mesmo ficheiro), quatro nebulosas posicionadas via shader \texttt{Custom/NebulaClouds\_UI} (com domain warp, v\'{o}rtice animado e pulso), estrelas cadentes via \texttt{ShootingStars}, painel central com t\'{i}tulo ``N-BODY SIMULATOR'' em pulso subtil de brilho (\texttt{PulseTitle}), subt\'{i}tulo ``EDUCATION EDITION'', tr\^{e}s bot\~{o}es com borda colorida, seta animada em hover (\texttt{EventTrigger}) e roda\'{a}p\'{e}; anima\c{c}\~{a}o de entrada com \textit{fade} c\'{u}bico (\texttt{FadeIn}).
+  
+  \item \textbf{\texttt{MainMenuController}}: quatro m\'{e}todos p\'{u}blicos chamados pelos bot\~{o}es: \texttt{LoadNewton()}, \texttt{LoadLaboratorio()}, \texttt{LoadRelatividade()} e \texttt{QuitApplication()}.
+  
+  \item \textbf{\texttt{MainMenuBackground}}: script alternativo (n\~{a}o ativo na cena final) que usaria um \texttt{ParticleSystem} com 320 estrelas e 60 part\'{i}culas de nebulosa, com paralaxa temporal suave (\texttt{transform.position} oscilado por senos de baixa frequ\^{e}ncia). Mantido no projeto como alternativa sem shader.
+\end{itemize}
+
+\textbf{\texttt{ShootingStars}} gera estrelas cadentes com trilho gradiente azul-branco: \textit{spawn} aleat\'{o}rio acima ou \`{a} esquerda do ecr\~{a}, \^{a}ngulo de queda 20--45$^{\circ}$, velocidade 500--900 px/s, comprimento 80--200 px, m\'{a}ximo de 3 estrelas simult\^{a}neas, com \textit{fade-in} e \textit{fade-out} suaves. A textura do trilho \'{e} gerada proceduralmente por c\'{o}digo (\texttt{MakeGradientTex}).
+
+% ============================================================
+\section{Shaders Custom}
+
+Para al\'{e}m dos scripts C\#, o projeto inclui seis shaders escritos em HLSL para o \textit{Universal Render Pipeline} (URP) do Unity. Todos se encontram em \texttt{Assets/Shaders/} e foram desenvolvidos de raiz sem assets externos. Esta sec\c{c}\~{a}o descreve cada um, a sua l\'{o}gica de fragmento e o seu papel visual no projeto.
+
+\subsection{\texttt{Custom/AccretionDisk} e \texttt{Custom/AccretionDiskFront}}
+
+Estes dois shaders renderizam o disco de acre\c{c}\~{a}o dos buracos negros. S\~{a}o id\^{e}nticos na l\'{o}gica de fragmento, diferindo apenas na fila de render (\texttt{Transparent+1} vs.\ \texttt{Transparent+3}) e no facto de \texttt{AccretionDiskFront} fazer \texttt{discard} de todos os fragmentos com \texttt{centered.y < 0}, renderiza apenas a metade superior do disco, criando o efeito de \textit{gravitational lensing} onde o disco ``aparece'' por cima do horizonte de eventos.
+
+A l\'{o}gica do fragmento implementa quatro fen\'{o}menos f\'{i}sicos de forma procedural, sem texturas:
+
+\begin{itemize}
+  \item \textbf{Rota\c{c}\~{a}o kepleriana:} a velocidade angular de cada fragmento varia com $\omega \propto r^{-1/2}$, simulando \'{o}rbitas de Kepler no disco;
+
+  \item \textbf{Filamentos de acre\c{c}\~{a}o:} dois termos senoidais sobrepostos
+  \[
+    f_1 = \left(\frac{\sin(n\theta)+1}{2}\right)^{\!3},\qquad
+    f_2 = \left(\frac{\sin(2.3n\theta + 1.1)+1}{2}\right)^{\!4}
+  \]
+  (modulados por \texttt{\_FilamentStr}) criam estrutura radial filamentosa animada sem textura. O fator $(\cdot+1)/2$ remapeia o seno de $[-1,1]$ para $[0,1]$ antes da exponencia\c{c}\~{a}o, garantindo valores estritamente positivos;
+  
+  \item \textbf{Efeito Doppler:} $\texttt{doppler} = 1 + D \cdot (\cos(\theta) \cdot 0.5 + 0.5)$ faz o lado que se aproxima ficar mais brilhante que o lado que se afasta, simulando o desvio de frequ\^{e}ncia relativ\'{i}stico;
+  
+  \item \textbf{Deforma\c{c}\~{a}o tidal:} quando o \texttt{BinaryBlackHoleManager} aproxima dois buracos negros, passa os par\^{a}metros \texttt{\_TidalStretch}, \texttt{\_TidalSquish} e \texttt{\_TidalAngle} ao material. O shader roda para o referencial tidal, aplica uma distor\c{c}\~{a}o quadrupolar ($x \mathbin{*}= 1 + \texttt{stretch}$, $y \mathbin{*}= 1 - \texttt{squish}$) e volta ao referencial original, o disco fica visivelmente el\'{i}ptico na dire\c{c}\~{a}o de sep\-ara\c{c}\~{a}o dos dois buracos negros;
+  
+  \item \textbf{Anel de fot\~{o}es:} uma zona estreita e muito brilhante (\texttt{\_PhotonBright}) no raio interno do disco, usando \texttt{smoothstep} para uma faixa de largura \texttt{\_PhotonWidth}. N\~{a}o \'{e} fisicamente rigoroso (o anel de fot\~{o}es real requer \textit{ray tracing} relativ\'{i}stico) mas aproxima o efeito visual.
+\end{itemize}
+
+O gradiente de temperatura \'{e} de tr\^{e}s bandas: interior branco-quente $\to$ laranja m\'{e}dio $\to$ vermelho frio exterior, codificado pelo par\^{a}metro radial normalizado \texttt{tRadial}.
+
+\subsection{\texttt{Custom/BlackHoleHorizon}}
+
+Shader do horizonte de eventos. O interior da esfera \'{e} completamente negro (nenhuma luz emitida); as bordas produzem um \textit{rim light} com a equa\c{c}\~{a}o:
+
+\begin{equation}
+\alpha_{\text{rim}} = \left(1 - \hat{n} \cdot \hat{v}\right)^{P} \cdot W
+\end{equation}
+
+onde $\hat{n}$ \'{e} a normal em \textit{world space}, $\hat{v}$ o vetor da c\^{a}mara, $P$ o \texttt{\_RimPower} e $W$ o \texttt{\_RimWidth}. Este produto interno \'{e} m\'{i}nimo nas bordas da esfera (normal perpendicular \`{a} vista) e m\'{a}ximo no centro. A cor final renderizada \'{e} $\texttt{\_RimColor} \times \alpha_{\text{rim}} \times \texttt{\_GlowIntensity}$, onde \texttt{\_GlowIntensity} controla o brilho geral do anel independentemente da sua forma, criando o anel azul-branco que simula o anel de fot\~{o}es sem custo de \textit{ray tracing}.
+
+\subsection{\texttt{Custom/SpacetimeGrid}}
+
+Shader da grelha de espa\c{c}o-tempo. A deforma\c{c}\~{a}o geom\'{e}trica \'{e} calculada pelo \texttt{Spacetime\ Grid.cs} na CPU e aplicada aos v\'{e}rtices da \textit{mesh}; este shader renderiza as linhas e o \textit{glow} sobre essa mesh j\'{a} deformada.
+
+No vertex shader, a profundidade de deforma\c{c}\~{a}o \'{e} calculada como:
+\begin{equation}
+d = \text{saturate}\!\left(\frac{-y_{\text{OS}}}{\texttt{\_MaxDeform}}\right)
+\end{equation}
+onde $y_{\text{OS}}$ \'{e} a coordenada Y em \textit{object space} (negativa = deformado para baixo). No fragment shader, este valor $d$ garante um gradiente de quatro cores que muda de azul ci\^{a}no (plano, $d=0$) $\to$ branco frio ($d=0.3$) $\to$ laranja quente ($d=0.6$) $\to$ branco puro ($d=1$, maximo perto do buraco negro), com um \textit{brightness boost} de $1 + d \times 1.2$ nas zonas mais curvas. As linhas s\~{a}o calculadas a partir de \texttt{frac(uv $\times$ 30)} para uma grelha de 30 c\'{e}lulas, com \textit{glow} quadr\'{a}tico em torno de cada linha.
+
+\subsection{\texttt{Custom/NebulaClouds} e \texttt{Custom/NebulaClouds\_UI}}
+
+\texttt{NebulaClouds} \'{e} usado nos fundos 3D das tr\^{e}s cenas de simula\c{c}\~{a}o (Newton, Laborat\'{o}rio e Relatividade); \texttt{NebulaClouds\_UI} \'{e} a vers\~{a}o equivalente para \texttt{RawImage} no canvas do MainMenu.
+
+Ambos geram nuvens de nebulosa proceduralmente em HLSL, sem texturas, usando \textbf{FBM (\textit{Fractal Brownian Motion})} com 3 oitavas de \textit{value noise}:
+
+\begin{itemize}
+  \item \textbf{Hash:} $h(p) = \text{frac}\!\left(p_x \cdot p_y\right)$ ap\'{o}s perturba\c{c}\~{a}o do vetor $p$ - sem textura de ru\'{i}do, custo de mem\'{o}ria zero;
+  \item \textbf{Value noise:} interpola\c{c}\~{a}o bicubica dos 4 pontos de hash vizinhos com $u = f^2(3 - 2f)$ (\textit{smoothstep});
+  \item \textbf{FBM:} 3 oitavas ($\text{amp} \in \{0.5, 0.25, 0.125\}$, frequ\^{e}ncia $\times 2.1$ por oitava).
+\end{itemize}
+
+O \textit{falloff} radial usa $\text{pow}(1 - d, p)$ onde $p$ varia com o tamanho da nuvem (\texttt{sizeNorm} via UV2): nuvens pequenas t\^{e}m \textit{falloff} abrupto e brilhante; nuvens grandes t\^{e}m \textit{falloff} suave e difuso, dando profundidade ao conjunto. As tr\^{e}s cores (azul-violeta, laranja quente, azul frio) s\~{a}o interpoladas por \texttt{colorIndex} passado por UV2, permitindo que cada \textit{quad} tenha uma cor distinta sem mudar de material.
+
+\subsection{\texttt{Custom/PlanetRimLight}}
+
+Shader de \textit{rim light} para planetas. Usa \texttt{Cull Front} (render da face traseira) e alpha-blend standard (\texttt{SrcAlpha OneMinusSrcAlpha}) para criar um halo de atmosfera nas bordas de cada planeta. A equa\c{c}\~{a}o \'{e} id\^{e}ntica ao \texttt{BlackHoleHorizon}:
+
+\begin{equation}
+\alpha = \left(1 - \hat{n} \cdot \hat{v}\right)^{P} \cdot I
+\end{equation}
+
+com \texttt{\_RimPower} $P$ e \texttt{\_RimIntensity} $I$ configur\'{a}veis por material. O facto de usar \texttt{Cull Front} em vez de \texttt{Cull Back} significa que este shader renderiza por baixo da esfera principal, criando o anel sem sobrepor o interior do planeta.
+
+\subsection{Limita\c{c}\~{o}es e o que faria diferente}
+
+\begin{itemize}
+  \item \textbf{Disco de acre\c{c}\~{a}o sem \textit{ray tracing}:} o anel de fot\~{o}es e o lensing gravitacional s\~{a}o aproxima\c{c}\~{o}es visuais. A simula\c{c}\~{a}o correta (como em Interstellar \cite{james2015}) requer \textit{ray tracing} em espa\c{c}o curvo, resolvendo geod\'{e}sicas num campo de Kerr, impratic\'{a}vel em tempo real sem GPU dedicada;
+  
+  \item \textbf{Grid de espa\c{c}o-tempo:} a deforma\c{c}\~{a}o \'{e} calculada na CPU e passada ao shader como geometria j\'{a} deformada. Com \texttt{Compute Shader}, o c\'{a}lculo correria na GPU e o shader receberia apenas posi\c{c}\~{o}es de massas, permitindo grelhas muito mais densas;
+  
+  \item \textbf{FBM no shader vs.\ textura pr\'{e}-calculada:} o FBM de 3 oitavas por pixel \'{e} mais lento do que amostrar uma textura pr\'{e}-calculada. Com GPU dedicada, valeria a pena usar \textit{Blue Noise} ou texturas de ru\'{i}do em vez de calcular por fragmento, especialmente para a nebulosa com muitos \textit{quads}.
+\end{itemize}
+
+% ============================================================
+\section{Constrangimentos de \textit{Hardware}}
+
+\subsection{Aus\^{e}ncia de GPU dedicada}
+
+O desenvolvimento decorreu inteiramente numa m\'{a}quina sem GPU dedicada, operando exclusivamente em CPU. Este foi o constrangimento mais transversal e impactante de todo o projeto, tendo condicionado decis\~{o}es de arquitetura em todas as cenas. As principais consequ\^{e}ncias foram:
+
+\begin{itemize}
+  \item Impossibilidade de usar \textit{Compute Shaders} para paraleliza\c{c}\~{a}o de c\'{a}lculos na GPU;
+  \item Texturas procedurais geradas na CPU via coroutine (8 linhas por frame); a transfer\^{e}ncia final \texttt{Apply()} \'{e} s\'{i}ncrona mas representa apenas uma fra\c{c}\~{a}o do custo total;
+  \item \textit{Grid} de espa\c{c}o-tempo limitada a uma malha plana 2D de $20 \times 20$ c\'{e}lulas (441 v\'{e}rtices);
+  \item Simula\c{c}\~{a}o N-body com \textit{cap} r\'{i}gido de 30 objetos;
+  \item Fragmentos p\'{o}s-colis\~{a}o sem f\'{i}sica real, destru\'{i}dos ao fim de 0.5 segundos.
+\end{itemize}
+
+\subsection{Aus\^{e}ncia do Espa\c{c}o 3D na Cena de Relatividade Geral}
+
+A limita\c{c}\~{a}o mais visualmente significativa \'{e} a representa\c{c}\~{a}o do espa\c{c}o-tempo como uma \textit{grid} 2D plana no plano XZ, em vez de uma visualiza\c{c}\~{a}o volum\'{e}trica 3D. A vers\~{a}o fisicamente correta exigiria uma grelha volum\'{e}trica que deformasse em todas as dire\c{c}\~{o}es em torno das massas. Para isso seria necess\'{a}rio:
+
+\begin{itemize}
+  \item Uma \textit{mesh} 3D com dezenas de milhares de v\'{e}rtices (os atuais 441 s\~{a}o insuficientes);
+  \item Deforma\c{c}\~{a}o por \textit{Compute Shader} na GPU, impratic\'{a}vel sem GPU dedicada;
+  \item \textit{Shaders} de volumetria e \textit{ray marching} para o efeito visual correto.
+\end{itemize}
+
+O c\'{a}lculo de deforma\c{c}\~{a}o atual \'{e} inteiramente sequencial na CPU:
+
+\begin{lstlisting}[caption={SpacetimeGrid.cs - loop de deforma\c{c}\~{a}o na CPU, O(v $\times$ m) por frame}]
+// LateUpdate - CPU, sequencial, sem paralelismo
+// v = 441 vertices, m = numero de massas
+for (int i = 0; i < baseVertices.Length; i++)       // O(v)
+{
+    foreach (RelativityBody body in bodies)          // O(m)
+    {
+        float dist = Mathf.Sqrt(dx*dx + dz*dz);
+        float curve = Mathf.Pow(tVal, bFalloff);
+        totalDeform += curve * bStrength * massRatio;
+    }
+    vertices[i] = new Vector3(basePos.x, -(totalDeform + waveDeform), basePos.z);
+}
+mesh.vertices = vertices;
+mesh.RecalculateNormals();  // tambem na CPU, a cada frame
+\end{lstlisting}
+
+Com GPU e \textit{Compute Shader}, este loop correria em paralelo para todos os v\'{e}rtices simultaneamente, permitindo malhas de $100 \times 100$ ou mais sem impacto no CPU \textit{frame budget}.
+
+% ============================================================
+\section{An\'{a}lise T\'{e}cnica Detalhada}
+
+O constrangimento de hardware n\~{a}o foi pontual, foi estrutural. A cada decis\~{a}o de implementa\c{c}\~{a}o surgiu a mesma pergunta: \textit{o que \'{e} fisicamente correto} versus \textit{o que a m\'{a}quina consegue executar sem colapsar}. As subsec\c{c}\~{o}es seguintes analisam sistematicamente cada \'{a}rea, identificando o que foi feito, porque foi feito assim, e o que seria feito numa segunda itera\c{c}\~{a}o com hardware adequado.
+
+\subsection{Simula\c{c}\~{a}o N-body: Integrador e Complexidade}
+
+\subsubsection{Integrador de Euler semi-impl\'icito (Euler-Cromer)}
+
+O \texttt{StarSystemManager.cs} usa integra\c{c}\~{a}o de Euler semi-impl\'{i}cito (m\'{e}todo de Euler-Cromer):
+
+\begin{lstlisting}[caption={StarSystemManager.cs - Euler semi-impl\'{i}cito no FixedUpdate}]
+// 1. Atualiza todas as velocidades com a aceleracao do instante n
+stars[i].velocity += acceleration * dt;
+// ...
+// 2. Atualiza todas as posicoes com a velocidade ja atualizada (v_{n+1})
+sc.transform.position += sc.velocity * dt;
+\end{lstlisting}
+
+As equa\c{c}\~{o}es de atualiza\c{c}\~{a}o do integrador de Euler semi-impl\'{i}cito s\~{a}o:
+\begin{equation}
+\mathbf{v}_{n+1} = \mathbf{v}_n + \mathbf{a}_n \, h, \qquad
+\mathbf{x}_{n+1} = \mathbf{x}_n + \mathbf{v}_{n+1} \, h
+\end{equation}
+onde a posi\c{c}\~{a}o \'{e} atualizada com $\mathbf{v}_{n+1}$ (velocidade j\'{a} atualizada), n\~{a}o com $\mathbf{v}_n$. Ao contr\'{a}rio do Euler expl\'{i}cito puro ($\mathbf{x}_{n+1} = \mathbf{x}_n + \mathbf{v}_n h$), este m\'{e}todo \'{e} simpl\'{e}tico, conserva a estrutura Hamiltoniana do sistema, mas mant\'{e}m erro global $O(h)$ de primeira ordem. Em simula\c{c}\~{o}es de mec\^{a}nica orbital, o erro de energia acumula-se mais lentamente do que no Euler expl\'{i}cito puro, mas as \'{o}rbitas ainda derivam a longo prazo.
+
+\textbf{O que faria diferente:} o integrador \textbf{Velocity Verlet} partilha o mesmo car\'{a}ter simpl\'{e}tico mas eleva a ordem do erro para $O(h^2)$, com o mesmo custo computacional. Atualiza posi\c{c}\~{a}o e velocidade como:
+\begin{equation}
+\mathbf{x}_{n+1} = \mathbf{x}_n + \mathbf{v}_n h + \tfrac{1}{2}\mathbf{a}_n h^2, \qquad
+\mathbf{v}_{n+1} = \mathbf{v}_n + \tfrac{1}{2}(\mathbf{a}_n + \mathbf{a}_{n+1})\, h
+\end{equation}
+conservando a estrutura simpl\'{e}tica do Hamiltoniano \cite{wisdom1991,hockney1981} com precis\~{a}o superior. A mudan\c{c}a seria de $\approx 10$ linhas e teria impacto visual direto na estabilidade das \'{o}rbitas a longo prazo.
+
+Para casos ainda mais exigentes, como a simula\c{c}\~{a}o do sistema bin\'{a}rio na cena de Relatividade, um integrador Runge-Kutta de 4\textordfeminine{} ordem (RK4) oferece erro $O(h^4)$ com 4 avalia\c{c}\~{o}es de for\c{c}a por passo, ao custo de 4$\times$ o trabalho por \textit{frame} \cite{hairer1993,varintegrators2006}. Em hardware com poder computacional suficiente, este seria o integrador ideal para \'{o}rbitas de longa dura\c{c}\~{a}o.
+
+\subsubsection{Complexidade $O(n^2)$ do Loop de Gravidade}
+
+A for\c{c}a gravitacional entre dois corpos \'{e} dada pela lei de Newton:
+\begin{equation}
+\mathbf{F}_{ij} = G \frac{m_i m_j}{|\mathbf{r}_{ij}|^2} \hat{\mathbf{r}}_{ij}
+\end{equation}
+O loop de gravidade no \texttt{FixedUpdate} avalia todos os pares de objetos:
+
+\begin{lstlisting}[caption={StarSystemManager.cs - loop N-body O(n$^2$)}]
+for (int i = 0; i < stars.Count; i++)
+{
+    Vector3 acceleration = Vector3.zero;
+    for (int j = 0; j < stars.Count; j++)
+    {
+        if (i == j || stars[j].CompareTag("Fragment")) continue;
+        float force = (G * stars[j].mass) / distSq;
+        acceleration += dir.normalized * force;
+    }
+    stars[i].velocity += acceleration * dt;
+}
+\end{lstlisting}
+
+Com $n = 30$ objetos a 50 Hz (\texttt{FixedUpdate} padr\~{a}o) t\^{e}m-se $30^2 \times 50 = 45\,000$ avalia\c{c}\~{o}es de for\c{c}a por segundo. Com $n = 100$ seria $500\,000$, da\'{i} o \textit{cap} r\'{i}gido no c\'{o}digo:
+
+\begin{lstlisting}[caption={PlanetCollision.cs - cap de seguran\c{c}a por aus\^{e}ncia de poder computacional}]
+// LIMITADOR DE SEGURANCA SEVERo:
+// Reduzido para 30 para o PC nao lagar de todo durante colisoes :(
+if (manager.GetStars().Count > 30) return;
+\end{lstlisting}
+
+\textbf{O que faria diferente:}
+
+\begin{itemize}
+  \item \textbf{Algoritmo Barnes-Hut}: constr\'{o}i uma \textit{octree} que agrupa corpos distantes como massas pontuais. A complexidade passa a $O(n \log n)$. Para $n = 100$: $\approx 700$ opera\c{c}\~{o}es por passo vs.\ $10\,000$ no loop atual, uma ordem de grandeza. O par\^{a}metro $\theta$ (crit\'{e}rio de abertura) controla o tr\^{a}de-off entre precis\~{a}o e velocidade: $\theta = 0$ \'{e} N-body exato, $\theta = 1$ \'{e} altamente aproximado \cite{barnes1986};
+  
+  \item \textbf{Unity Job System com Burst Compiler}: paraleliza o loop $O(n^2)$ existente pelos \textit{cores} dispon\'{i}veis usando \texttt{IJobParallelFor}. Sem mudar o algoritmo, um CPU de 4 \textit{cores} d\'{a} $\approx 4\times$ speedup. Isto teria permitido elevar o \textit{cap} de 30 para $\approx 100$ objetos sem alterar a l\'{o}gica de simula\c{c}\~{a}o;
+  
+  \item \textbf{GPGPU via Compute Shader}: com GPU dedicada, o loop de gravidade correria inteiramente na GPU. Para $n = 1\,000$ objetos, uma GPU moderna avalia os $10^6$ pares em paralelo, tornando a simula\c{c}\~{a}o de gal\'{a}xias com milh\~{o}es de estrelas vi\'{a}vel em tempo real \cite{nyland2007,springel2005}.
+\end{itemize}
+
+\subsection{Colis\~{o}es Planet\'{a}rias e Fragmentos P\'{o}s-Colis\~{a}o}
+
+\subsubsection{O Problema Central: \'{O}rbitas dos Destro\c{c}os}
+
+Este \'{e} o ponto de maior diverg\^{e}ncia entre o que foi implementado e o que seria fisicamente correto. Ap\'{o}s uma colis\~{a}o, os fragmentos gerados s\~{a}o destru\'{i}dos ao fim de 0.5 segundos e n\~{a}o recebem qualquer for\c{c}a gravitacional:
+
+\begin{lstlisting}[caption={StarSystemManager.cs - fragmentos exclu\'{i}dos do loop gravitacional}]
+if (stars[i].gameObject.CompareTag("Fragment"))
+{
+    // Fragmentos agora nao processam gravidade para aliviar o PC
+    continue;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={PlanetCollision.cs --- destrui\c{c}\~{a}o em 0.5 s sem f\'{i}sica}]
+// Destruicao ultra-rapida (0.5 segundos)
+StartCoroutine(QuickDestroy(obj, 0.5f));
+\end{lstlisting}
+
+O resultado \'{e} que as colis\~{o}es geram efeitos puramente visuais. O que deveria acontecer: destro\c{c}os em velocidade sub-orbital a cair de volta \`{a} estrela, destro\c{c}os com velocidade orbital a formar cintur\~{o}es de asteroides an\'{e}is planet\'{a}rios, destro\c{c}os com velocidade de escape a sair do sistema: Infelizmente, n\~{a}o acontece.
+
+\textbf{O que faria diferente:} a infraestrutura necess\'{a}ria j\'{a} existe no c\'{o}digo. A velocidade de eje\c{c}\~{a}o de cada fragmento \'{e} calculada corretamente com base na energia de impacto. O m\'{e}todo \texttt{GetNearestStar()} j\'{a} identifica a estrela dominante. Bastaria, em vez de destruir os fragmentos em 0.5 s, registar cada fragmento na simula\c{c}\~{a}o com intera\c{c}\~{a}o apenas com a estrela mais pr\'{o}xima com custo de 1 avalia\c{c}\~{a}o de for\c{c}a por fragmento por \textit{frame}, negligenci\'{a}vel. Fragmentos com velocidade suficiente escapariam; os restantes descre\-veriam \'{o}rbitas el\'{i}pticas nat\'{u}ralmente. Com Barnes-Hut ou Job System, os 10--20 fragmentos de uma colis\~{a}o poderiam ser mantidos na simula\c{c}\~{a}o durante v\'{a}rios minutos sem impacto percet\'{i}vel.
+
+\subsubsection{Modelo de Fragmenta\c{c}\~{a}o: Bom mas Limitado}
+
+O modelo de fragmenta\c{c}\~{a}o implementado \'{e} fisicamente fundamentado, usa a raz\~{a}o entre energia de impacto e energia de liga\c{c}\~{a}o gravitacional para determinar o n\'{u}mero de fragmentos:
+
+\begin{lstlisting}[caption={PlanetCollision.cs - modelo de fragmenta\c{c}\~{a}o baseado em energia}]
+// Energia cinetica do impacto (massa reduzida * v_relativa^2)
+float reducedMass = (fragmented.mass * impactor.mass)
+                  / (fragmented.mass + impactor.mass);
+float eImpact = 0.5f * reducedMass * relSpeed * relSpeed;
+// Energia de ligacao gravitacional: E_bind = G * M^2 / R
+float eBind = G * fragmented.mass * fragmented.mass / radius;
+// N de fragmentos proporcional a (E_impact/E_bind)^beta
+int nFragments = Clamp(RoundToInt(min * Pow(ratio, beta)), min, max);
+\end{lstlisting}
+
+No entanto, todos os fragmentos t\^{e}m tamanho fixo de escala 0.12 e massa uniforme. O modelo \'{e} fisicamente fundamentado nas equa\c{c}\~{o}es de energia:
+\begin{equation}
+E_{\text{impacto}} = \tfrac{1}{2} \mu v_{\text{rel}}^2, \qquad
+E_{\text{lig}} = \frac{G M^2}{R}, \qquad
+N_{\text{frag}} = \left\lfloor N_{\min} \left(\frac{E_{\text{impacto}}}{E_{\text{lig}}}\right)^{\!\beta} \right\rceil
+\end{equation}
+onde $\mu = m_1 m_2/(m_1+m_2)$ \'{e} a massa reduzida. No entanto, ignora-se a distribui\c{c}\~{a}o de tamanhos real (lei de pot\^{e}ncia). \textbf{O que faria diferente:} aplicar $N(m) \propto m^{-\alpha}$ (com $\alpha \approx 1.8$ para fragmenta\c{c}\~{a}o catastr\'{o}fica \cite{benz1999,leinhardt2012}), gerando poucos fragmentos grandes e muitos pequenos.
+
+\subsubsection{Dete\c{c}\~{a}o de Colis\~{a}o Manual $O(n^2)$}
+
+As colis\~{o}es s\~{a}o detetadas por loops manuais a cada \texttt{FixedUpdate}. Para al\'{e}m da complexidade quadr\'{a}tica, h\'{a} uma otimiza\c{c}\~{a}o de emerg\^{e}ncia com impacto funcional:
+
+\begin{lstlisting}[caption={StarSystemManager.cs - apenas uma colis\~{a}o processada por frame}]
+pc.ProcessCollision(a, b);
+// ...
+return; // OTIMIZACAO: Apenas uma colisao por frame para evitar lag
+\end{lstlisting}
+
+Se dois pares colidirem no mesmo \textit{frame}, apenas um \'{e} processado. \textbf{O que faria diferente:} usar \texttt{Rigidbody} cinem\'{a}ticos com \texttt{OnCollisionEnter}, aproveitando o BVH (\textit{Bounding Volume Hierarchy}) nativo do \textit{Physics engine} do Unity, que \'{e} $O(n \log n)$ e corre separadamente do \textit{main thread}. O controlo da velocidade permaneceria manual; s\'{o} a dete\c{c}\~{a}o seria delegada ao \textit{engine}.
+
+% ============================================================
+% Secção: Cores das Estrelas e Classificação Espectral MK
+% ============================================================
+\subsection{Cores das Estrelas: Classifica\c{c}\~{a}o Espectral MK}
+
+A aparência visual de cada estrela no simulador, em particular a sua cor, fundamenta-se diretamente na sequ\^{e}ncia espectral de Harvard, formalizada pelo sistema de classifica\c{c}\~{a}o Morgan-Keenan-Kellman (MK) \cite{morgan1943,keenan1985}. O sistema MK organiza as estrelas em tipos espectrais ordenados por temperatura efetiva decrescente: O, B, A, F, G, K, M, cada um com uma cor característica que resulta do pico de emiss\~{a}o do corpo negro a essa temperatura.
+
+No \texttt{StarComponent.cs}, o método \texttt{UpdateAppearance()} mapeia a massa interna de cada estrela para uma cor segundo esta sequ\^{e}ncia, usando a massa como \textit{proxy} da temperatura (estrelas mais massivas s\~{a}o, em m\'{e}dia, mais quentes e luminosas na sequ\^{e}ncia principal):
+
+\begin{itemize}
+  \item \textbf{Tipo M} ($T < 3\,700$\,K, massas $\leq 157$ u.i.): \textbf{vermelho} - \texttt{Color(1.0, 0.05, 0.05)};
+  \item \textbf{Tipo K} ($\approx$3\,700--5\,200\,K, massas $\approx$157--255 u.i.): \textbf{laranja} - \texttt{Color(1.0, 0.5, 0.2)};
+  \item \textbf{Tipo G} ($\approx$5\,200--6\,000\,K, massas $\approx$255--360 u.i.): \textbf{amarelo} (como o Sol) - \texttt{Color(1.0, 0.95, 0.6)};
+  \item \textbf{Tipo F/A} ($\approx$6\,000--10\,000\,K, massas $\approx$360--500 u.i.): \textbf{branco} - \texttt{Color(1.0, 1.0, 1.0)};
+  \item \textbf{Tipo B/O} ($T > 10\,000$\,K, massas $\geq 500$ u.i.): \textbf{azul-branco} - \texttt{Color(0.5, 0.7, 1.0)}.
+\end{itemize}
+
+A correspond\^{e}ncia \'{e} fisicamente motivada: a rela\c{c}\~{a}o massa-luminosidade de estrelas na sequ\^{e}ncia principal segue $L \propto M^{3.5}$ (aproxima\c{c}\~{a}o de Eddington), e a temperatura efetiva escala com a luminosidade. O c\'{o}digo usa interpola\c{c}\~{a}o linear (\texttt{Color.Lerp}) entre os n\'{o}s da sequ\^{e}ncia, produzindo transi\c{c}\~{o}es suaves em vez de saltos discretos entre tipos. A emiss\~{a}o (\texttt{\_EmissionColor}) \'{e} atualizada simultaneamente com cor quadr\'{a}tica ($c^2$ por canal), simulando o brilho mais intenso das estrelas massivas.
+
+\textbf{O que faria diferente:} uma implementa\c{c}\~{a}o mais rigorosa usaria a biblioteca espectral de Pickles \cite{pickles1998}, que cobre 131 estrelas representativas de todos os tipos MK com fluxo espectral contínuo entre 1150--25\,000\,\AA. A cor percebida de cada tipo seria calculada por integra\c{c}\~{a}o do espectro contra as fun\c{c}\~{o}es de sensibilidade CIE XYZ, convertida para sRGB, em vez da paleta empírica atual. Al\'{e}m disso, o simulador ignora a classe de luminosidade (an\~{a}s vs.\ gigantes vs.\ supergigantes) e a metalicidade, dois par\^{a}metros que afetam significativamente a cor observada \cite{keenan1985}.
+
+\subsection{Texturas Procedurais dos Planetas}
+
+O script \texttt{PlanetAppearence.cs} (429 linhas) gera texturas procedurais para cada planeta em \textit{runtime} atrav\'{e}s de tr\^{e}s coroutines encadeadas: \texttt{GenerateSurfaceAsync}, \texttt{GenerateEmi\ ssion Async} e \texttt{GenerateCloudsAsync}. Cada coroutine processa \textbf{8 linhas de p\'{i}xeis por frame} e cede o controlo com \texttt{yield return null}, distribuindo o trabalho sem bloquear o \textit{main thread}:
+
+\begin{lstlisting}[caption={PlanetAppearence.cs - gera\c{c}\~{a}o de textura distribu\'{i}da por frames}]
+IEnumerator GenerateSurfaceAsync()
+{
+    // Processa 8 linhas por frame - sem freeze
+    for (int y = 0; y < res; y++)
+    {
+        for (int x = 0; x < res; x++)
+            pixels[y * res + x] = SampleNoise(x, y, seed);
+
+        if (y % linesPerFrame == 0) yield return null; // cede o frame
+    }
+    tex.SetPixels(pixels);
+    tex.Apply();  // unica operacao sincrona (CPU -> GPU)
+}
+\end{lstlisting}
+
+Para uma resolu\c{c}\~{a}o de $256 \times 256$, a gera\c{c}\~{a}o demora 32 frames ($\approx 0.5$\,s a 60 fps), com apenas 2\,048 avalia\c{c}\~{o}es de ru\'{i}do por frame. O \'{u}nico momento s\'{i}ncrono \'{e} o \texttt{Apply()} final, que transfere o buffer j\'{a} calculado para a GPU, opera\c{c}\~{a}o muito mais r\'{a}pida do que o loop completo.
+
+\textbf{O que faria diferente:}
+
+\begin{itemize}
+  \item \textbf{\textit{Fragment Shader} procedural \cite{ebert2003,akenine2018}}: a textura nunca existiria como objeto em mem\'{o}ria. O ru\'{i}do seria avaliado diretamente no shader HLSL/ShaderGraph durante o \textit{rasterization}, por pixel, em paralelo na GPU. Custo de CPU: zero. Qualidade: ilimitada. E o planeta poderia ter anima\c{c}\~{a}o procedural em tempo real (nuvens a mover, oceanos com ondas) sem custo adicional;
+
+  \item \textbf{\textit{Compute Shader} para pr\'{e}-c\'{a}lculo}: calcular toda a textura na GPU de uma vez, usando um \textit{Compute Shader} que escreve diretamente numa \texttt{RenderTexture}. Eliminaria o \texttt{Apply()} s\'{i}ncrono e reduziria o tempo de gera\c{c}\~{a}o de 32 frames para um \'{u}nico passe de GPU.
+\end{itemize}
+
+\subsection{Grid de Espa\c{c}o-Tempo: Resolu\c{c}\~{a}o, Dimensionalidade e F\'{i}sica}
+
+\subsubsection{Resolu\c{c}\~{a}o e Deforma\c{c}\~{a}o}
+
+A \texttt{SpacetimeGrid} usa \texttt{gridSize = 20}, produzindo 441 v\'{e}rtices ($21 \times 21$). Para buracos negros no \texttt{BinaryBlackHoleManager}, a depress\~{a}o gravitacional fica visivelmente facetada perto do horizonte de eventos. O custo do loop de deforma\c{c}\~{a}o \'{e} $O(v \times m)$ por \textit{frame}, onde $v$ \'{e} o n\'{u}mero de v\'{e}rtices e $m$ o n\'{u}mero de massas. Com \texttt{gridSize = 20} e 3 massas: $441 \times 3 = 1\,323$ opera\c{c}\~{o}es por \textit{frame}, mais \texttt{RecalculateNormals()} e atualiza\c{c}\~{a}o do \texttt{MeshCollider}.
+
+Aumentar \texttt{gridSize} para 60 tornaria o loop $\approx 8{,}4\times$ mais pesado ($61^2/21^2 \approx 8{,}4$) --- j\'{a} percet\'{i}vel na CPU, mas ainda longe do limite. A barreira real est\'{a} no \texttt{RecalculateNormals()} e na atualiza\c{c}\~{a}o do \texttt{MeshCollider}, que escalam igualmente com $v$ e s\~{a}o operac\~{o}es bloqueantes. Para grelhas de $100 \times 100$ ($\approx 23\times$ o custo atual), o impacto no \textit{frame budget} seria impratic\'{a}vel sem GPU.
+
+\textbf{O que faria diferente:}
+
+\begin{itemize}
+  \item \textbf{\textit{Compute Shader} para deforma\c{c}\~{a}o:} o loop de $O(v \times m)$ seria mapeado para \texttt{[numthreads(8,8,1)]} grupos, correndo todos os v\'{e}rtices em paralelo. Com GPU, \texttt{gridSize = 100} ($\approx 10\,000$ v\'{e}rtices) torna-se vi\'{a}vel, permitindo depresses\~{o}es muito mais suaves e precisas;
+  
+  \item \textbf{\textit{Adaptive Mesh Refinement} (AMR):} aumentar a densidade de v\'{e}rtices apenas perto das massas, onde a curvatura \'{e} m\'{a}xima. Longe da massa, 4 v\'{e}rtices por c\'{e}lula s\~{a}o suficientes; junto ao horizonte de eventos, 100 v\'{e}rtices por c\'{e}lula dariam um resultado muito mais correto. O AMR reduz o n\'{u}mero total de v\'{e}rtices necess\'{a}rios mantendo alta precis\~{a}o local \cite{berger1989}.
+\end{itemize}
+
+\subsubsection{Aus\^{e}ncia de 3D: A Limita\c{c}\~{a}o Mais Profunda}
+
+A representa\c{c}\~{a}o 2D \'{e} pedagogicamente eficaz mas fisicamente incompleta \cite{thorne2014}. A curvatura do espa\c{c}o-tempo \'{e} intrinsecamente tridimensional: um corpo em \'{o}rbita curva o espa\c{c}o em todas as dire\c{c}\~{o}es. A visualiza\c{c}\~{a}o correta seria uma grelha volum\'{e}trica 3D com:
+
+\begin{itemize}
+  \item Deforma\c{c}\~{a}o radial simpl\'{e}tica em torno de cada massa (e n\~{a}o apenas no plano XZ);
+  \item \textit{Ray marching} para renderizar a grelha volum\'{e}trica de forma vis\'{i}vel;
+  \item \textit{Gravitational lensing} visual: raios de luz curvados pela massa (efeito de lente gravitacional), imposs\'{i}vel sem GPU.
+\end{itemize}
+
+\subsubsection{F\'{i}sica de Deslize e o Gradiente da Grid}
+
+A simula\c{c}\~{a}o de planetas ``deslizando pela curvatura'' \'{e} uma aproxima\c{c}\~{a}o intuitiva mas n\~{a}o fisicamente rigorosa. O \texttt{RelativityBody.cs} calcula o gradiente num\'{e}rico da grid por diferen\c{c}as finitas:
+
+\begin{lstlisting}[caption={RelativityBody.cs - gradiente num\'{e}rico da grid por diferen\c{c}as finitas}]
+void SlideAlongGrid()
+{
+    // Gradiente aponta na direcao da descida
+    Vector3 gradient = grid.GetGridGradientAt(x, z);
+    Vector3 force = gradient * slideForce;
+    velocity += force * Time.deltaTime;
+    velocity *= Mathf.Pow(damping, Time.deltaTime * 60f); // amortecimento
+}
+\end{lstlisting}
+
+Esta abordagem n\~{a}o \'{e} equivalente \`{a} geod\'{e}sica: a trajet\'{o}ria correta de um corpo em espa\c{c}o curvo seria a solu\c{c}\~{a}o da equa\c{c}\~{a}o geod\'{e}sica \cite{schwarzschild1916,thorne2014}:
+\begin{equation}
+\frac{d^2 x^\mu}{d\tau^2} + \Gamma^\mu_{\nu\rho}\frac{dx^\nu}{d\tau}\frac{dx^\rho}{d\tau} = 0
+\end{equation}
+onde $\Gamma^\mu_{\nu\rho}$ s\~{a}o os s\'{i}mbolos de Christoffel da m\'{e}trica.
+
+\textbf{O que faria diferente:} embora a equa\c{c}\~{a}o geod\'{e}sica completa seja pesada, uma boa aproxima\c{c}\~{a}o \'{e} usar a m\'{e}trica de Schwarzschild \cite{schwarzschild1916,einstein1916}:
+\begin{equation}
+ds^2 = -\left(1 - \frac{r_s}{r}\right)c^2\,dt^2 + \left(1-\frac{r_s}{r}\right)^{-1}dr^2 + r^2 d\Omega^2
+\end{equation}
+para calcular a for\c{c}a efetiva em torno de cada massa. Isto manteria a intui\c{c}\~{a}o visual da grid enquanto a trajet\'{o}ria do planeta seria fisicamente correta (precess\~{a}o do peri\'{e}lio, captura gravitacional correta, etc.).
+
+\subsection{Ondas Gravitacionais: Bom Modelo Visual, F\'{i}sica Simplificada}
+
+O \texttt{GravitationalWaves.cs} implementa ondas propagantes por um modelo Gaussiano radial com amortecimento temporal e espacial:
+
+\begin{lstlisting}[caption={GravitationalWaves.cs - modelo Gaussiano de propagacao de ondas}]
+float waveShape = Mathf.Exp(-(distToFront*distToFront) / (width*width*0.5f));
+float timeFade  = (1f - elapsed/duration)^2;   // amortecimento quadratico
+float distFade  = 1f - dist / (speed * duration);
+totalDeform    += waveShape * timeFade * distFade * waveAmplitude * massScale;
+\end{lstlisting}
+
+O modelo \'{e} visualmente convincente mas n\~{a}o respeita a equa\c{c}\~{a}o de onda 2D. A amplitude real de uma onda gravitacional decai como \cite{abbott2016,thorne2014}:
+\begin{equation}
+h \sim \frac{G}{c^4} \frac{\ddot{Q}_{ij}}{r}
+\end{equation}
+onde $h$ \'{e} a strain, $\ddot{Q}_{ij}$ a segunda derivada temporal do momento quadrupolar de massa e $r$ a dist\^{a}ncia ao sistema. A forma de onda n\~{a}o \'{e} Gaussiana mas determinada por esta express\~{a}o; em 2D a amplitude decairia com $1/r$, n\~{a}o com a Gaussiana radial implementada.
+
+\textbf{O que faria diferente:} resolver a equa\c{c}\~{a}o de onda escalar linearizada:
+\begin{equation}
+\Box h = \frac{16\pi G}{c^4} T
+\end{equation}
+num \textit{Compute Shader}, atualizando um campo 2D a cada \textit{frame}. Isto produziria interfer\^{e}ncias, reflex\~{o}es e padr\~{o}es de difra\c{c}\~{a}o corretos, especialmente vis\'{i}veis no sistema bin\'{a}rio de buracos negros.
+
+\subsection{Minimap e Ferramentas Espaciais}
+
+O \texttt{Minimap.cs} usa uma segunda c\^{a}mara ortogr\'{a}fica que renderiza a cena para uma \texttt{RenderTexture}, com auto-zoom suavizado centrado no ponto m\'{e}dio entre o baricentro e a posi\c{c}\~{a}o da c\^{a}mara principal, garantindo que o indicador de posi\c{c}\~{a}o da c\^{a}mara n\~{a}o sai dos limites do minimap.
+
+\textbf{O que faria diferente:} a segunda c\^{a}mara implica um segundo passe de render completo a cada \textit{frame}. Com GPU dedicada, substituiria por uma c\^{a}mara de baixa resolu\c{c}\~{a}o com \textit{culling} agressivo ou por um minimap 2D puramente procedural gerado em CPU (sem renderiza\c{c}\~{a}o extra), que seria mais leve.
+
+\subsection{Nebulosa e \textit{Starfield} Procedurais}
+
+O \texttt{ProceduralNebula.cs} usa 80 \textit{quads billboard} com distribui\c{c}\~{a}o de tamanhos em lei de pot\^{e}ncia (\textit{sizeDistributionPower = 2.2}), atualizados a cada \texttt{LateUpdate} para seguir a c\^{a}mara. A escrita de 320 v\'{e}rtices ($80 \times 4$) por \textit{frame} na CPU \'{e} o custo principal.
+
+\textbf{O que faria diferente:} usar um \textit{Particle System} GPU-driven ou um \texttt{DrawMeshInstanced} com matrizes de transforma\c{c}\~{a}o pr\'{e}-calculadas, eliminando a escrita de v\'{e}rtices na CPU. Com GPU, a nebulosa poderia ter 10\,000 part\'{i}culas sem custo percet\'{i}vel.
+
+% ============================================================
+\section{Tabela Resumo}
+
+A tabela seguinte sintetiza as decis\~{o}es t\'{e}cnicas analisadas nas sec\c{c}\~{o}es anteriores, contrastando o que foi implementado com o que seria feito numa segunda itera\c{c}\~{a}o com GPU dedicada.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{>{\bfseries}p{3.0cm} p{4.0cm} p{6.5cm}}
+\toprule
+Aspeto & O que foi feito & O que faria diferente \\
+\midrule
+Integrador N-body & Euler Semi-Impl\'icito ($O(h)$) & Velocity Verlet ($O(h^2)$), mesmo custo, maior precis\~{a}o \\
+Complexidade N-body & Loop $O(n^2)$, \textit{cap} 30 objetos & Barnes-Hut $O(n \log n)$ ou Job System paralelo \\
+Fragmentos p\'{o}s-colis\~{a}o & Destruidos em 0.5 s, sem f\'{i}sica & Intera\c{c}\~{a}o com estrela dominante $\rightarrow$ \'{o}rbitas / cin\-tur\~{o}es \\
+Distribui\c{c}\~{a}o de fragmentos & Tamanho e massa uniformes & Distribui\c{c}\~{a}o em lei de pot\^{e}ncia $m^{-\alpha}$ \\
+Dete\c{c}\~{a}o de colis\~{a}o & Loop $O(n^2)$ manual, 1/\textit{frame} & Physics BVH nativo (\texttt{OnCollisionEnter}) \\
+Grid espa\c{c}o-tempo & 2D plana, $20{\times}20$ c\'{e}lulas, CPU & 3D volum\'{e}trica, AMR, \textit{Compute Shader} \\
+Cores das estrelas & Escala emp\'{i}rica por massa & Biblioteca espectral MK/Pickles \cite{pickles1998} + integra\c{c}\~{a}o CIE XYZ \\
+Texturas procedurais & CPU, coroutine 8 linhas/frame; \texttt{Apply()} s\'{i}ncrono & \textit{Fragment Shader} HLSL / \textit{Compute Shader} \\
+Deforma\c{c}\~{a}o da grid & Loop $O(v{\times}m)$, CPU sequencial & \textit{Compute Shader} paralelo, $100{\times}100$ vi\'{a}vel \\
+F\'{i}sica de deslize & Gradiente geom\'{e}trico da \textit{mesh} & Aproxima\c{c}\~{a}o por m\'{e}trica de Schwarzschild \\
+Ondas gravitacionais & Gaussiana radial fenomenol\'{o}gica & Equa\c{c}\~{a}o de onda linearizada em \textit{Compute Shader} \\
+Nebulosa procedural & 80 \textit{quads} CPU, \textit{LateUpdate} & GPU Particles / \texttt{DrawMeshInstanced} \\
+\textit{Minimap} & Segunda c\^{a}mara, render completo & \textit{Minimap} 2D procedural sem passe extra \\
+\bottomrule
+\end{tabular}
+\caption{Resumo das decis\~{o}es t\'{e}cnicas e alternativas identificadas.}
+\end{table}
+
+% ============================================================
+\newpage
+\section{Conclus\~{a}o}
+
+A aus\^{e}ncia de GPU dedicada n\~{a}o foi um constrangimento pontual: foi uma press\~{a}o permanente que modelou cada decis\~{a}o de arquitetura. O projeto responde a esta press\~{a}o com mitiga\c{c}\~{o}es pragm\'{a}ticas, \textit{cap} de objetos, fragmentos sem f\'{i}sica, grid 2D, texturas na CPU, que mantiveram o resultado funcional e visualmente coerente dentro dos limites do hardware.
+
+Com GPU dedicada, as prioridades de melhoria por ordem de impacto seriam:
+
+\begin{enumerate}
+  \item \textbf{Texturas procedurais em \textit{Fragment Shader}}: elimina o custo de CPU por completo e permite anima\c{c}\~{a}o procedural em tempo real (nuvens, oceanos);
+  \item \textbf{Deforma\c{c}\~{a}o da grid com \textit{Compute Shader} e AMR}: grid $100{\times}100$ suave e adaptativa;
+  \item \textbf{Representa\c{c}\~{a}o 3D do espa\c{c}o-tempo}: a melhoria conceptualmente mais significativa;
+  \item \textbf{Integrador Velocity Verlet}: mudan\c{c}a de $\approx$10 linhas, eleva a precis\~{a}o de $O(h)$ para $O(h^2)$, reduzindo a deriva orbital a longo prazo;
+  \item \textbf{Fragmentos com f\'{i}sica real}: cinturas de asteroides e \'{o}rbitas de destro\c{c}os emergentes;
+  \item \textbf{Barnes-Hut ou Job System}: simula\c{c}\~{o}es com centenas de objetos;
+  \item \textbf{Equa\c{c}\~{a}o de onda para ondas gravitacionais}: interfer\^{e}ncias e padr\~{o}es f\'{i}sicos corretos.
+\end{enumerate}
+
+A consci\^{e}ncia das limita\c{c}\~{o}es e das solu\c{c}\~{o}es alternativas \'{e} parte essencial do processo: saber onde a \textit{performance} vai, porque vai, e o que seria diferente com outros recursos, \'{e} t\~{a}o importante quanto o que foi implementado.
+
+
+% ============================================================
+\newpage
+\begin{thebibliography}{99}
+
+% Física N-body e Integradores -------------------------------------------
+
+\bibitem{barnes1986}
+Barnes, J. \& Hut, P. (1986).
+A hierarchical $O(N \log N)$ force-calculation algorithm.
+\textit{Nature}, 324, 446--449.
+\texttt{doi:10.1038/324446a0}
+
+\bibitem{springel2005}
+Springel, V. (2005).
+The cosmological simulation code \textsc{gadget}-2.
+\textit{Monthly Notices of the Royal Astronomical Society}, 364(4), 1105--1134.
+\texttt{doi:10.1111/j.1365-2966.2005.09655.x}
+
+\bibitem{wisdom1991}
+Wisdom, J. \& Holman, M. (1991).
+Symplectic maps for the $N$-body problem.
+\textit{The Astronomical Journal}, 102(4), 1528--1538.
+\texttt{doi:10.1086/115978}
+
+\bibitem{hockney1981}
+Hockney, R. W. \& Eastwood, J. W. (1981).
+\textit{Computer Simulation Using Particles}.
+McGraw-Hill, Nova Iorque.
+
+\bibitem{varintegrators2006}
+Farr, W. M. \& Bertschinger, E. (2007).
+Variational integrators for the gravitational $N$-body problem.
+\textit{The Astrophysical Journal}, 663(2), 1420--1433.
+\texttt{doi:10.1086/518641}
+
+\bibitem{hairer1993}
+Hairer, E., N\o{}rsett, S. P. \& Wanner, G. (1993).
+\textit{Solving Ordinary Differential Equations~I: Nonstiff Problems} (2.\textordfeminine{} ed.).
+Springer, Berlim.
+ISBN 978-3-540-56670-8
+
+% GPU e Otimização de Código ---------------------------------------
+
+\bibitem{nyland2007}
+Nyland, L., Harris, M. \& Prins, J. (2007).
+Fast N-body simulation with CUDA.
+Em H.~Nguyen (Ed.), \textit{GPU Gems 3} (cap.~31, pp.~677--695).
+Addison-Wesley.
+
+\bibitem{bedorf2012}
+B\'{e}dorf, J. \& Portegies~Zwart, S. (2012).
+A pilgrimage to gravity on GPUs.
+\textit{European Physical Journal Special Topics}, 210(1), 201--210.
+\texttt{doi:10.1140/epjst/e2012-01649-6}
+
+% Colisões Planetárias e Fragmentação --------------------------
+
+\bibitem{benz1999}
+Benz, W. \& Asphaug, E. (1999).
+Catastrophic disruptions revisited.
+\textit{Icarus}, 142(1), 5--20.
+\texttt{doi:10.1006/icar.1999.6204}
+
+\bibitem{leinhardt2012}
+Leinhardt, Z. M. \& Stewart, S. T. (2012).
+Collisions between gravity-dominated bodies. I. Outcome regimes and scaling laws.
+\textit{The Astrophysical Journal}, 745(1), 79.
+\texttt{doi:10.1088/0004-637X/745/1/79}
+
+% Classificação Espectral e Cor das Estrelas ---------------------------
+
+\bibitem{morgan1943}
+Morgan, W. W., Keenan, P. C. \& Kellman, E. (1943).
+\textit{An Atlas of Stellar Spectra, with an Outline of Spectral Classification}.
+University of Chicago Press.
+
+\bibitem{keenan1985}
+Keenan, P. C. (1985).
+The MK classification and its calibration.
+\textit{IAU Symposium}, 111, 121--135.
+
+\bibitem{pickles1998}
+Pickles, A. J. (1998).
+A stellar spectral flux library: 1150--25000~\AA.
+\textit{Publications of the Astronomical Society of the Pacific}, 110(749), 863--878.
+\texttt{doi:10.1086/316197}
+
+% Relatividade Geral, Buracos Negros - livro guia
+
+\bibitem{thorne2014}
+Thorne, K. S. (2014).
+\textit{The Science of Interstellar}.
+W. W. Norton \& Company.
+ISBN 978-0-393-35137-8
+
+% Relatividade Geral e Buracos Negros (artigos)
+
+\bibitem{schwarzschild1916}
+Schwarzschild, K. (1916).
+\"{U}ber das Gravitationsfeld eines Massenpunktes nach der Einsteinschen Theorie.
+\textit{Sitzungsberichte der K\"{o}niglich Preu{\ss}ischen Akademie der Wissenschaften}, 189--196.
+
+\bibitem{einstein1916}
+Einstein, A. (1916).
+N\"{a}herungsweise Integration der Feldgleichungen der Gravitation.
+\textit{Sitzungsberichte der K\"{o}niglich Preu{\ss}ischen Akademie der Wissenschaften}, 688--696.
+
+\bibitem{abbott2016}
+Abbott, B. P. et al. (LIGO Scientific Collaboration and Virgo Collaboration) (2016).
+Observation of gravitational waves from a binary black hole merger.
+\textit{Physical Review Letters}, 116, 061102.
+\texttt{doi:10.1103/PhysRevLett.116.061102}
+
+\bibitem{bjerrumbohr2026resumming}
+N.~E.~J. Bjerrum-Bohr, G.~Chen, K.~Papadimos, e Y.~Zhang,
+\emph{Resumming Spinning Black Hole Dynamics at Third Post-Minkowskian Order},
+2026, arXiv:2603.04214 [hep-th].
+
+% AMR - Física Computacional
+
+\bibitem{berger1989}
+Berger, M. J. \& Colella, P. (1989).
+Local adaptive mesh refinement for shock hydrodynamics.
+\textit{Journal of Computational Physics}, 82(1), 64--84.
+\texttt{doi:10.1016/0021-9991(89)90035-1}
+
+% Texturas Procedurais e Gráficos -------------------------------------------
+
+\bibitem{ebert2003}
+Ebert, D. S., Musgrave, F. K., Peachey, D., Perlin, K. \& Worley, S. (2003).
+\textit{Texturing and Modeling: A Procedural Approach} (3.\textordfeminine{} ed.).
+Morgan Kaufmann.
+
+\bibitem{akenine2018}
+Akenine-M\"{o}ller, T., Haines, E. \& Hoffman, N. (2018).
+\textit{Real-Time Rendering} (4.\textordfeminine{} ed.).
+CRC Press.
+
+% Ferramentas e Software -------------------------------------------------------
+
+\bibitem{unity2024}
+Unity Technologies (2024).
+\textit{Unity 6 Manual} (vers\~{a}o 6000.3).
+Acedido em junho de 2026.
+Dispon\'{i}vel em: \url{https://docs.unity3d.com/6000.3/Documentation/Manual/UnityManual.html}
+
+\bibitem{james2015}
+James, O. et al. (2015).
+Gravitational lensing by spinning black holes in astrophysics, and in the movie \textit{Interstellar}.
+\textit{Classical and Quantum Gravity}, 32(6), 065001.
+\texttt{doi:10.1088/0264-9381/32/6/065001}
+
+\bibitem{claude2026}
+Anthropic (2026).
+Claude Sonnet~4.6: Large Language Model.
+Aux\'{i}lio em protótipos de scripts C\#, shaders HLSL/URP, l\'{o}gica Unity, e revis\~{a}o e formata\c{c}\~{a}o do relat\'{o}rio \LaTeX{}.
+Dispon\'{i}vel em: \url{https://claude.ai}
+
+\bibitem{gemini2026}
+Google DeepMind (2026).
+Gemini~[3.5 Flash: Large Language Model.
+Aux\'{i}lio na revisão final de scripts C\# e shaders HLSL/URP. Criação do logo/ícone do Simulador.
+Dispon\'{i}vel em: \url{https://gemini.google.com}
+
+\end{thebibliography}
+\end{document}
